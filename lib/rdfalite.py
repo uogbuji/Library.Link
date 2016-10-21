@@ -80,7 +80,7 @@ def parse(htmlsource, source_uri, statement_sink):
             typeof_list = elem.xml_attributes.get('typeof')
             if typeof_list:
                 for typeof in typeof_list.split():
-                    typeof = I(vocab + typeof.lstrip('/'))
+                    typeof = I(iri.absolutize(typeof.lstrip('/'), vocab))
                     statement_sink.send((resource, RDF_NS + 'type', typeof))
             prefix = elem.xml_attributes.get('prefix')
             if prefix:
@@ -98,19 +98,24 @@ def parse(htmlsource, source_uri, statement_sink):
             new_prop_list = elem.xml_attributes.get('property')
             new_value = None
             if new_prop_list:
+                #FIXME: Should this only be when about is used?
                 if typeof_list and not new_resource:
                     new_value = BNode()
                     #new_value = I(BNODE_ROOT + str(g_bnode_counter))
                     #g_bnode_counter += 1
+                elif new_resource:
+                    new_value = new_resource
                 for new_prop in new_prop_list.split():
-                    if ':' in new_prop:
+                    if new_prop == 'about':
+                        continue
+                    elif ':' in new_prop:
                         p, local = new_prop.split(':', 1)
                         if not p in prefixes:
                             #Silent error for now
                             continue
                         prop = I(prefixes[p] + new_prop.lstrip('/'))
                     else:
-                        prop = I(vocab + new_prop.lstrip('/'))
+                        prop = I(iri.absolutize(new_prop.lstrip('/'), vocab))
                     value = new_value or elem.xml_attributes.get('content') or elem.xml_value
                     statement_sink.send((resource, prop, value))
                     #print((resource, prop, value))

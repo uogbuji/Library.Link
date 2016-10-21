@@ -77,7 +77,7 @@ def run(inputs=None, rdfttl=None, rdfxml=None, verbose=False):
 if __name__ == '__main__':
     #parser = argparse.ArgumentParser(prog="bootstrap", add_help=False)
     parser = argparse.ArgumentParser()
-    parser.add_argument('inputs', metavar='inputs', nargs='*',
+    parser.add_argument('inputs', metavar='URLSORFILES', nargs='*',
                         help='One or more RDFa Lite URLs or files to be parsed and converted to RDF.')
     parser.add_argument('--rdfttl', type=argparse.FileType('wb'),
         help='File where RDF Turtle output should be written')
