@@ -18,15 +18,17 @@ from amara3.uxml.treeutil import *
 from amara3.uxml import html5
 
 RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
-SCHEMA_NS = 'http://schema.org'
+SCHEMA_NS = 'http://schema.org/'
 FOAF_NS = 'http://xmlns.com/foaf/0.1/'
 DC_NS = 'http://purl.org/dc/terms/'
+BFL_NS = 'http://bibfra.me/vocab/lite/'
 
 DEFAULT_PREFIXES = {
     'rdf': RDF_NS,
     'schema': SCHEMA_NS,
     'foaf': FOAF_NS,
-    'dc': DC_NS
+    'dc': DC_NS,
+    'bf': BFL_NS,
 }
 
 logger = logging.getLogger('rdfalite')
@@ -85,11 +87,18 @@ def parse(htmlsource, source_uri, statement_sink):
             prefix = elem.xml_attributes.get('prefix')
             if prefix:
                 logging.debug('{}'.format(prefix))
-                a, b = tee(prefix.split())
-                next(b, None)
-                for p, ns in zip(a, b):
-                    p = p.strip().strip(':')
-                    ns = ns.strip()
+                prefix_bits = prefix.split()
+                # a, b = tee(prefix.split())
+                # next(b, None)
+                # for p, ns in zip(a, b):
+                #     p = p.strip().strip(':')
+                #     ns = ns.strip()
+                #     print((p, ns))
+                #     #print(p, ns)
+                #     prefixes[p] = ns
+                for i, j in zip(range(0, len(prefix_bits), 2), range(1, len(prefix_bits), 2)):
+                    p = prefix_bits[i].strip().strip(':')
+                    ns = prefix_bits[j].strip()
                     #print(p, ns)
                     prefixes[p] = ns
             new_resource = elem.xml_attributes.get('resource')
@@ -111,9 +120,9 @@ def parse(htmlsource, source_uri, statement_sink):
                     elif ':' in new_prop:
                         p, local = new_prop.split(':', 1)
                         if not p in prefixes:
-                            #Silent error for now
+                            #FIXME: Silent error for now
                             continue
-                        prop = I(prefixes[p] + new_prop.lstrip('/'))
+                        prop = I(iri.absolutize(local.lstrip('/'), prefixes[p]))
                     else:
                         prop = I(iri.absolutize(new_prop.lstrip('/'), vocab))
                     value = new_value or elem.xml_attributes.get('content') or elem.xml_value
