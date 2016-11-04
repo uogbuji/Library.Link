@@ -48,6 +48,17 @@ setup(
     package_dir={'librarylink': 'lib'},
     packages = ['librarylink'],
     scripts=['exec/parse_rdfa',],
+    classifiers = [ # From http://pypi.python.org/pypi?%3Aaction=list_classifiers
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Development Status :: 3 - Alpha",
+        #"Environment :: Other Environment",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: OS Independent",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "Topic :: Internet :: WWW/HTTP",
+    ],
     #long_description = LONGDESC,
     #http://packages.python.org/distribute/setuptools.html#declaring-dependencies
 #    install_requires = ['amara == 2', 'versa'],

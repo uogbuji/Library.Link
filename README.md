@@ -27,3 +27,5 @@ Command Tool to parse RDFa 1.1 Lite (from the Library.Link pages or other HTML).
 ```
 parse_rdfa --rdfttl=foo.ttl "http://link.houstonlibrary.org/portal/Half-of-a-yellow-sun-Chimamanda-Ngozi/n7KqqbZFJuM/"
 ```
+
+Which outputs RDF Turtle to a file `foo.ttl`
