@@ -50,7 +50,7 @@ def run(inputs=None, rdfttl=None, rdfxml=None, verbose=False):
                 if rdfttl:
                     rdfttl.write(g.serialize(format="turtle"))
                 elif rdfxml:
-                    rdfttl.write(g.serialize(format="pretty-xml"))
+                    rdfxml.write(g.serialize(format="pretty-xml"))
 
         if iri.matches_uri_syntax(inp):
             with urllib.request.urlopen(inp) as resourcefp:
