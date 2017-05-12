@@ -17,14 +17,16 @@ Install
 
 Requires:
 
--  Python 3.4+
+-  Python 3.5+
 -  `amara3-xml`_ package
+-  `versa`_ package
 -  `html5lib`_ package
+-  `LibraryLink`_ package
 -  `pytest`_ (for running the test suite)
 
-For the latter 3, you can do:
+For all the latter, you can do:
 
-pip install pytest amara3-xml html5lib
+pip install pytest amara3-xml html5lib versa LibraryLink
 
 parse_rdfa
 ----------
@@ -33,7 +35,7 @@ Command Tool to parse RDFa 1.1 Lite (from the Library.Link pages or other HTML).
 
 ::
 
-    parse_rdfa --rdfttl=foo.ttl "http://link.houstonlibrary.org/portal/Half-of-a-yellow-sun-Chimamanda-Ngozi/n7KqqbZFJuM/"
+    liblink_resource_summary "http://link.houstonlibrary.org/portal/Half-of-a-yellow-sun-Chimamanda-Ngozi/n7KqqbZFJuM/"
 '''
 
 
@@ -47,7 +49,7 @@ setup(
     url = 'http://zepheira.com/',
     package_dir={'librarylink': 'lib'},
     packages = ['librarylink'],
-    scripts=['exec/parse_rdfa',],
+    scripts=['exec/liblink_resource_summary',],
     classifiers = [ # From http://pypi.python.org/pypi?%3Aaction=list_classifiers
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",

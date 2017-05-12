@@ -4,7 +4,7 @@ parse_rdfa
 
 Tool to parse RDFa 1.1 Lite
 
-parse_rdfa --rdfttl=foo.ttl "http://link.houstonlibrary.org/portal/Half-of-a-yellow-sun-Chimamanda-Ngozi/n7KqqbZFJuM/"
+liblink_resource_summary "http://link.houstonlibrary.org/portal/Half-of-a-yellow-sun-Chimamanda-Ngozi/n7KqqbZFJuM/"
 
 """
 
@@ -21,12 +21,12 @@ import logging
 
 import rdflib
 
-from versa.driver import memory
-from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
-
 from amara3 import iri
 
-from librarylink.rdfalite import parse, direct_rdf, DEFAULT_PREFIXES
+from versa.driver import memory
+from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
+from versa.reader.rdfalite import parse, rdfize, DEFAULT_PREFIXES
+
 
 def run(inputs=None, rdfttl=None, rdfxml=None, verbose=False):
     '''
