@@ -42,10 +42,10 @@ def run(inputs=None, rdfttl=None, rdfxml=None, verbose=False):
                 g = rdflib.Graph()
                 for k, v in DEFAULT_PREFIXES.items():
                     g.bind(k, v)
-                output = direct_rdf(g)
+                output = rdfize(g)
                 #Prime coroutine
                 next(output)
-                parse(fp, I(uri), output)
+                parse(fp, output, I(uri))
                 #print(len(g))
                 if rdfttl:
                     rdfttl.write(g.serialize(format="turtle"))
