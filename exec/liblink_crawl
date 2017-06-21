@@ -1,0 +1,113 @@
+#!/usr/bin/env python
+#Ideas from: https://github.com/mehmetkose/python3.5-async-crawler
+'''
+
+liblink_crawl --script=test/resource/quickinfo.py http://link.anythinklibraries.org/
+
+'''
+
+#python -m liblinkbots.crawler.simplelinkchecker http://link.cuyahogalibrary.org/ /tmp/crawl.log
+
+import re
+import sys
+import random
+import asyncio
+import argparse
+import async_timeout
+#from urllib.parse import urljoin, urldefrag
+
+import aiohttp
+import rdflib
+from logbook import Logger, StreamHandler
+
+from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, VTYPE_REL
+#from versa import util
+from versa.driver import memory
+from versa.writer import md
+from versa.reader import rdfalite
+from versa.reader.rdfalite import parse, tordf, DEFAULT_PREFIXES
+
+from amara3 import iri
+from amara3.uxml import html5
+from amara3.uxml.treeutil import descendants, select_elements
+
+from librarylink.util import liblink_set
+from librarylink.crawler.framework import crawltask, links_from_html
+
+
+def run(frontpage, sinkcls, workers=None, pagesperfile=None, logger=None, **kwords):
+    #logger = kwords.get('logger')
+    #workers = kwords.get('workers')
+    #pagesperfile = kwords.get('pagesperfile')
+
+    loop = asyncio.get_event_loop()
+    linkset_q = asyncio.Queue(loop=loop)
+    lln_page_q = asyncio.Queue(loop=loop)
+    linkset = (None, [frontpage])
+    linkset_q.put_nowait(linkset)
+    #set of URLs which have been self._seen and thus not re-crawled, added to here
+    seen = liblink_set()
+
+    sinkcls.setparams(pagesperfile, logger)
+
+    sink = sinkcls(frontpage, **kwords)
+
+    tasks = [
+        crawltask(task_id, frontpage, sink, linkset_q, seen, logger).crawl_for_ld()
+        for task_id in range(workers)
+    ]
+    try:
+        loop.run_until_complete(asyncio.wait(tasks))
+    except:
+        raise
+    loop.close()
+    return
+
+
+if __name__ == '__main__':
+    #liblink_crawl_ld
+
+    def add_main_parser_args(p):
+        p.add_argument('frontpage', metavar="URL",
+            help='Page on which to start crawling.')
+        p.add_argument('--script', metavar="PATH", type=argparse.FileType('r'),
+            help='Python file with script for crawler.')
+        p.add_argument('--workers', metavar='NUM', type=int, default=10,
+            help='Number of worker tasks to employ.')
+        p.add_argument('--pagesperfile', metavar='NUM', type=int, default=100,
+            help='Number of crawled pages after which to serialize partial results to file.')
+        p.add_argument('-v', '--verbose', action='store_true',
+            help='Show additional messages and information')
+
+    main_parser = argparse.ArgumentParser()
+    add_main_parser_args(main_parser)
+    args, unknown = main_parser.parse_known_args()
+    #args = main_parser.parse_args()
+
+    StreamHandler(sys.stderr).push_application()
+
+    if args.script:
+        globloc = {}
+        exec(args.script.read(), globloc, globloc)
+        sinkcls = globloc['LLCRAWL_CLASS']
+
+    sub_parser = argparse.ArgumentParser()
+    add_main_parser_args(sub_parser)
+    sinkcls.update_cmdline_parser(sub_parser)
+    otherargs = sub_parser.parse_args()
+    #otherargs, unknown = parser.parse_known_args
+
+    otherargs = vars(otherargs)
+    del otherargs['script']; del otherargs['workers']; del otherargs['pagesperfile']; del otherargs['verbose']; del otherargs['frontpage']
+
+    logger = Logger(args.script.name)#'simplelinkchecker')
+
+    run(args.frontpage,
+        sinkcls,
+        workers=args.workers,
+        pagesperfile=args.pagesperfile,
+        logger=logger,
+        **otherargs)
+
+    #Cleanup
+    sinkcls.close()

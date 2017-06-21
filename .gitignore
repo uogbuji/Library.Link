@@ -3,6 +3,7 @@ scratch
 MANIFEST
 #PyCharm
 .idea
+.web_cache
 
 #----
 

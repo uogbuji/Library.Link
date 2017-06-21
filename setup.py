@@ -48,8 +48,11 @@ setup(
     author_email = 'uche@zepheira.com',
     url = 'http://zepheira.com/',
     package_dir={'librarylink': 'lib'},
-    packages = ['librarylink'],
-    scripts=['exec/liblink_resource_summary',],
+    packages = ['librarylink', 'librarylink.crawler'],
+    scripts=[
+        'exec/liblink_resource_summary',
+        'exec/liblink_crawl',
+    ],
     classifiers = [ # From http://pypi.python.org/pypi?%3Aaction=list_classifiers
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
