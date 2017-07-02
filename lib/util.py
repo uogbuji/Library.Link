@@ -130,10 +130,10 @@ def simplify_link(url):
     '''
     scheme, auth, path, query, fragment = iri.split_uri_ref(url)
     if path.startswith('/resource/'):
-        path = 'resource/' + path.partition('/resource/')[-1].split('/')[0] + '/'
+        path = '/resource/' + path.partition('/resource/')[-1].split('/')[0] + '/'
         return iri.unsplit_uri_ref((scheme, auth, path, None, None))
     if '/portal/' in url:
-        path = 'portal/' + '/'.join(path.partition('/portal/')[-1].split('/')[:2]) + '/'
+        path = '/portal/' + '/'.join(path.partition('/portal/')[-1].split('/')[:2]) + '/'
         return iri.unsplit_uri_ref((scheme, auth, path, None, None))
 
 

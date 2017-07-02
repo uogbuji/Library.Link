@@ -52,8 +52,9 @@ def run(frontpage, sinkcls, workers=None, pagesperfile=None, logger=None, **kwor
 
     sink = sinkcls(frontpage, **kwords)
 
+    idle_flags = [False] * workers
     tasks = [
-        crawltask(task_id, frontpage, sink, linkset_q, seen, logger).crawl_for_ld()
+        crawltask(task_id, frontpage, sink, linkset_q, seen, idle_flags, logger).crawl_for_ld()
         for task_id in range(workers)
     ]
     try:

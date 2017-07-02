@@ -95,13 +95,14 @@ def links_from_html(root, baseurl, look_for=HTML_LINKS):
 
 
 class crawltask(object):
-    def __init__(self, task_id, front_page, sink, linkset_q, seen, logger):
+    def __init__(self, task_id, front_page, sink, linkset_q, seen, idle_flags, logger):
         self._task_id = task_id
         self._sink = sink
         self._logger = logger
         #linkset_q and self._seen are shared across all tasks
         self._linkset_q = linkset_q
         self._seen = seen
+        self._idle_flags = idle_flags
         self._front_page = front_page
 
     async def lln_handle_one_link(self, source, link):
@@ -129,10 +130,11 @@ class crawltask(object):
                     self._logger.debug('Error: {} [TASK {}] -> {}'.format(link, self._task_id, repr(e)))
 
             if body:
-                linkset = self._sink.send((body, respurl, resp.headers, source, self._task_id))
+                ls = self._sink.send((body, respurl, resp.headers, source, self._task_id))
                 #Trim links which have already been seen when queued (saves memory)
-                linkset = set(link for link in linkset if link not in self._seen)
-                if linkset: self._linkset_q.put_nowait((respurl, linkset))
+                if ls:
+                    #XXX: Use set intersection?
+                    self._linkset_q.put_nowait((respurl, liblink_set( link for link in ls if link not in self._seen )))
         except Exception as e:
             self._logger.exception()
             self._logger.debug('Above error in context of TASK {}, LINK {}, source {}'.format(self._task_id, link, source))
@@ -155,12 +157,15 @@ class crawltask(object):
         wakeup_counter = 0
 
         try:
-            while True:
+            #Stop when all tasks have no more work to do
+            while not(all(self._idle_flags)):
                 wakeup_counter += 1
                 if wakeup_counter % mainloop_log_interval == 0:
                     #TWEET_URL_PATTERN.format()
                     self._logger.debug('{} [TASK {}] still alive and has lived its main loop {} times. {} links seen.'.format(funcname, self._task_id, wakeup_counter, len(self._seen)))
                 while not self._linkset_q.empty():
+                    #More work to do; not idle
+                    self._idle_flags[self._task_id] = False
                     (source, linkset) = await self._linkset_q.get()
                     #self._logger.debug('{} [TASK {}] dequeued source: {} linkset: {}.'.format(funcname, self._task_id, source, linkset))
                     tasks = []
@@ -169,9 +174,12 @@ class crawltask(object):
                         await self.lln_handle_one_link(source, link)
                         self._seen.add(link)
 
+                #Flag self as idle
+                self._idle_flags[self._task_id] = True
                 await asyncio.sleep(mainloop_wait)
         except Exception as e:
             self._logger.debug('Error in {} [TASK {}]: {}.'.format(funcname, self._task_id, repr(e)))
+        self._logger.debug('[{}] All tasks idle; TASK {} finishing.'.format(funcname, self._task_id))
 
 
 class base_sink(object):
