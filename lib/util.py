@@ -80,8 +80,7 @@ def prep_site_model(site):
             sitetext = resourcefp.read()
             rdfalite.toversa(sitetext, model, site)
     except (urllib.error.HTTPError, urllib.error.URLError) as e:
-        logger.debug('HTTP Error accessing {} ({})'.format(site, repr(e)))
-        return None, None
+        return None, e
     return model, sitetext
 
 
@@ -171,13 +170,13 @@ def get_orgdetails(site, reuse=None):
         details['pipeline_ver'] = m.group(1).decode('utf-8')
     else:
         details['pipeline_ver'] = None
-        print('Unable to get pipeline version from:', site)
+        #print('Unable to get pipeline version from:', site)
     m = TEMPLATE_VERSION_PAT.search(sitetext)
     if m:
         details['template_ver'] = m.group(1).decode('utf-8')
     else:
         details['template_ver'] = None
-        print('Unable to get template version from:', site)
+        #print('Unable to get template version from:', site)
 
     if b'<img class="img-responsive" src="/static/liblink_ea/img/nlogo.png"' in sitetext:
         details['features'].append('http://library.link/ext/feature/novelist/merge')
