@@ -1,4 +1,4 @@
-include LICENSE README.md
+include requirements.txt LICENSE README.md
 recursive-include test *.py *.html
 recursive-include doc *.md
 #prune *.pyc

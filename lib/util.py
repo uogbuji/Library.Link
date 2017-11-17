@@ -150,8 +150,11 @@ def get_orgdetails(site, reuse=None):
     details = {'name': None, 'group': None, 'groupname': None, 'network': None, 'features': []}
     #for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'Organization'):
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'LibrarySystem'):
+        id_ = o
         details['name'] = util.simple_lookup(model, o, SCHEMAORG_NS + 'name').strip()
         break
+
+    details['id'] = id_
     #for o, r, t, a in model.match(None, SCHEMAORG_NS + 'member'):
     #    group = t.split('#')[0]
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'Consortium'):
@@ -181,6 +184,16 @@ def get_orgdetails(site, reuse=None):
     if b'<img class="img-responsive" src="/static/liblink_ea/img/nlogo.png"' in sitetext:
         details['features'].append('http://library.link/ext/feature/novelist/merge')
 
+    details['same-as'] = []
+    for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'LibrarySystem'):
+        for _, r, t, a in model.match(o, SCHEMAORG_NS + 'sameAs'):
+            details['same-as'].append(t)
+        break
+
+    for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'LibrarySystem'):
+        details['logo'] = util.simple_lookup(model, o, SCHEMAORG_NS + 'logo').strip()
+        break
+
     return details
 
 
@@ -202,9 +215,11 @@ def get_branches(site, reuse=None):
         return None
     branches = []
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'Library'):
+        id_ = o
         name = util.simple_lookup(model, o, SCHEMAORG_NS + 'name').strip()
         url = util.simple_lookup(model, o, SCHEMAORG_NS + 'url')
         loc = util.simple_lookup(model, o, SCHEMAORG_NS + 'location')
+        addr = util.simple_lookup(model, o, SCHEMAORG_NS + 'address')
         #Goes schema:Library - schema:location -> schema:Place - schema:geo -> Coordinates
         if loc:
             loc = util.simple_lookup(model, loc, SCHEMAORG_NS + 'geo')
@@ -212,7 +227,26 @@ def get_branches(site, reuse=None):
             lat = util.simple_lookup(model, loc, SCHEMAORG_NS + 'latitude')
             long_ = util.simple_lookup(model, loc, SCHEMAORG_NS + 'longitude')
 
-        branches.append((url, name, (lat, long_) if loc else None))
+        if addr:
+            #rdf:type	schema:PostalAddress
+            #schema:streetAddress	"2111 Snow Road"@en
+            #schema:addressLocality	"Parma"@en
+            #schema:addressRegion	"OH"@en
+            #schema:postalCode	"44134"@en
+            #schema:addressCountry	"US"@en
+            street = util.simple_lookup(model, addr, SCHEMAORG_NS + 'streetAddress')
+            locality = util.simple_lookup(model, addr, SCHEMAORG_NS + 'addressLocality')
+            region = util.simple_lookup(model, addr, SCHEMAORG_NS + 'addressRegion')
+            postcode = util.simple_lookup(model, addr, SCHEMAORG_NS + 'postalCode')
+            country = util.simple_lookup(model, addr, SCHEMAORG_NS + 'addressCountry')
+
+        branches.append((
+            id_,
+            url,
+            name,
+            (lat, long_) if loc else None,
+            (street, locality, region, postcode, country) if addr else None
+        ))
 
     return branches
 
