@@ -19,6 +19,7 @@ from versa.reader.rdfalite import RDF_NS, SCHEMAORG_NS
 from versa import util
 
 from bibframe import BFZ, BL
+from bibframe.zextra import LL
 
 from rdflib import URIRef, Literal
 from rdflib import BNode
@@ -135,10 +136,12 @@ def get_orgdetails(site, reuse=None):
     '''
     Given an organization object as returned from librarylink.util.all_sites, or just a plain base URL string; return the org's name
     >>> from librarylink.util import all_sites, get_orgdetails
+    >>> det = get_orgdetails('http://link.dcl.org/')
+    >>> det['name']
+    'Douglas County Libraries'
     >>> org = next(s for s in all_sites() if 'denverlibrary' in s.host )
-    >>> get_orgname(org)
-    'Denver Public Library'
-    >>> get_orgname('http://link.denverlibrary.org/')
+    >>> det = get_orgdetails(org.base_url)
+    >>> det['name']
     'Denver Public Library'
     '''
     if reuse:
@@ -147,8 +150,8 @@ def get_orgdetails(site, reuse=None):
         model, sitetext = prep_site_model(site)
     if not model:
         return None
-    details = {'name': None, 'group': None, 'groupname': None, 'network': None, 'features': []}
-    #for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'Organization'):
+    details = {'name': None, 'group': None, 'groupname': None, 'network': None, 'features': set()}
+    id_ = None
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'LibrarySystem'):
         id_ = o
         details['name'] = util.simple_lookup(model, o, SCHEMAORG_NS + 'name').strip()
@@ -181,8 +184,12 @@ def get_orgdetails(site, reuse=None):
         details['template_ver'] = None
         #print('Unable to get template version from:', site)
 
+    for o, r, t, a in model.match(None, LL+'feature'):
+        details['features'].add(t)
+
+    #Legacy, for libraries where the above isn't published
     if b'<img class="img-responsive" src="/static/liblink_ea/img/nlogo.png"' in sitetext:
-        details['features'].append('http://library.link/ext/feature/novelist/merge')
+        details['features'].add('http://library.link/ext/feature/novelist/merge')
 
     details['same-as'] = []
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'LibrarySystem'):
@@ -191,7 +198,8 @@ def get_orgdetails(site, reuse=None):
         break
 
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'LibrarySystem'):
-        details['logo'] = util.simple_lookup(model, o, SCHEMAORG_NS + 'logo').strip()
+        logo = util.simple_lookup(model, o, SCHEMAORG_NS + 'logo')
+        details['logo'] = logo.strip() if logo else logo
         break
 
     return details
