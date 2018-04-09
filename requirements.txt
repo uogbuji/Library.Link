@@ -1,13 +1,13 @@
-amara3-iri==3.0.0b3
+amara3-iri
 
 requests
 rdflib
 pytest
-versa>=0.3.3
+versa
 html5lib
 
 #From Versa pyreqs.txt
-amara3-xml==3.0.0b3
+amara3-xml
 
 #Optional bits
 #CacheControl[filecache]

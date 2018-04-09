@@ -275,6 +275,8 @@ def llnurl_ident(url):
             rhash = path.partition('/resource/')[-1].split('/')[0]
         elif '/portal/' in url:
             rhash = path.partition('/portal/')[-1].split('/')[1]
+        else:
+            raise ValueError('Invalid LLN URL: ' + repr(url))
     except IndexError as e:
         #FIXME L10N
         raise ValueError('Invalid LLN URL: ' + repr(url))
@@ -287,9 +289,23 @@ def simplify_link(url):
 
     >>> from librarylink.util import simplify_link
     >>> simplify_link('http://link.worthingtonlibraries.org/resource/9bz8W30aSZY/')
-    ('link.worthingtonlibraries.org', '9bz8W30aSZY')
+    'http://link.worthingtonlibraries.org/resource/9bz8W30aSZY/'
     >>> simplify_link('http://link.worthingtonlibraries.org/portal/Unshakeable--your-financial-freedom-playbook/cZlfLtSpcng/')
-    ('link.worthingtonlibraries.org', 'cZlfLtSpcng')
+    'http://link.worthingtonlibraries.org/portal/Unshakeable--your-financial-freedom-playbook/cZlfLtSpcng/'
+    >>> simplify_link('http://link.worthingtonlibraries.org/portal/Unshakeable--your-financial-freedom-playbook/cZlfLtSpcng/borrow/')
+    'http://link.worthingtonlibraries.org/portal/Unshakeable--your-financial-freedom-playbook/cZlfLtSpcng/'
+    >>> simplify_link('http://link.worthingtonlibraries.org/res/9bz8W30aSZY/boo/') is None
+    True
+    >>> simplify_link('http://link.worthingtonlibraries.org/resource/9bz8W30aSZY/boo/')
+    'http://link.worthingtonlibraries.org/resource/9bz8W30aSZY/'
+    >>> simplify_link('/res/9bz8W30aSZY/boo/') is None
+    True
+    >>> simplify_link('/resource/9bz8W30aSZY/boo/')
+    '/resource/9bz8W30aSZY/'
+    >>> simplify_link('https://link.worthingtonlibraries.org/resource/9bz8W30aSZY/')
+    'https://link.worthingtonlibraries.org/resource/9bz8W30aSZY/'
+    >>> simplify_link('https://link.worthingtonlibraries.org/resource/9bz8W30aSZY/borrow/')
+    'https://link.worthingtonlibraries.org/resource/9bz8W30aSZY/'
     '''
     scheme, auth, path, query, fragment = iri.split_uri_ref(url)
     try:
@@ -299,38 +315,52 @@ def simplify_link(url):
         if '/portal/' in url:
             path = '/portal/' + '/'.join(path.partition('/portal/')[-1].split('/')[:2]) + '/'
             return iri.unsplit_uri_ref((scheme, auth, path, None, None))
+        else:
+            path = None
     except IndexError as e:
         #FIXME L10N
         raise ValueError('Invalid LLN URL: ' + repr(url))
-    return host, rhash
+    return path
 
 
 class liblink_set(collections.abc.MutableSet):
     '''
     Smart collection of URLs that is smart about Library.Link URLs and how to dedup them for set operations
+    It can also manage a set of exclusions, e.g. to eliminate a URL for repeat processing
     '''
     def __init__(self, iterable=None):
-        self.rawset = set()
+        self._rawset = set()
+        self._exclusions = set()
         if iterable is not None:
             self |= iterable
 
     def add(self, item):
         simplified = simplify_link(item) or item
-        self.rawset.add(simplified)
+        if simplified not in self._exclusions:
+            self._rawset.add(simplified)
+
+    def exclude(self, item):
+        simplified = simplify_link(item) or item
+        self._rawset.discard(simplified)
+        self._exclusions.add(simplified)
 
     def __len__(self):
-        return len(self.rawset)
+        return len(self._rawset)
 
     def __contains__(self, item):
         simplified = simplify_link(item) or item
-        return simplified in self.rawset
+        return simplified in self._rawset
 
     def discard(self, item):
         simplified = simplify_link(item) or item
-        self.rawset.discard(simplified)
+        self._rawset.discard(simplified)
 
     def __iter__(self):
-        yield from self.rawset
+        yield from self._rawset
+
+    def __repr__(self):
+        s = 'RAWSET: ' + repr(self._rawset) + '\n' + 'EXCLUSIONS: ' + repr(self._exclusions)
+        return s
 
     #?
     #def __reversed__(self):

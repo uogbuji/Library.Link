@@ -6,21 +6,9 @@
 
 ERROR_CONDITIONS_TO_NOTE = '''
 
-[2017-06-05 16:52:11.615895] ERROR: /home/uche/.local/pyenv/main/bin/liblink_crawl: Uncaught exception occurred
-Traceback (most recent call last):
-  File "/home/uche/.local/pyenv/main/lib/python3.5/site-packages/liblinkbots/crawler/framework.py", line 99, in lln_handle_one_link
-    async with session.get(link) as resp:
-  File "/home/uche/.local/pyenv/main/lib/python3.5/site-packages/aiohttp/client.py", line 626, in __aenter__
-    self._resp = yield from self._coro
-  File "/home/uche/.local/pyenv/main/lib/python3.5/site-packages/aiohttp/client.py", line 220, in _request
-    proxy=proxy, proxy_auth=proxy_auth, timer=timer)
-  File "/home/uche/.local/pyenv/main/lib/python3.5/site-packages/aiohttp/client_reqrep.py", line 88, in __init__
-    self.update_host(url)
-  File "/home/uche/.local/pyenv/main/lib/python3.5/site-packages/aiohttp/client_reqrep.py", line 113, in update_host
-    "Could not parse hostname from URL '{}'".format(url))
-ValueError: Could not parse hostname from URL 'mailto:?subject=Boca%20Raton%20(Place)%20at%20Anythink%20Libraries&body=I%20found%20this%20resource%20at%20the%20library%20and%20thought%20you%20might%20be%20interested.%0A%0ABoca%20Raton%20(Place)%20at%20Anythink%20Libraries%20%0A-%20http://link.anythinklibraries.org/resource/ewcC8cBWhdU/?share%3Dmail'
-[2017-06-05 16:52:11.646990] DEBUG: /home/uche/.local/pyenv/main/bin/liblink_crawl: Above error in context of TASK 19, LINK mailto:?subject=Boca%20Raton%20%28Place%29%20at%20Anythink%20Libraries&body=I%20found%20this%20resource%20at%20the%20library%20and%20thought%20you%20might%20be%20interested.%0A%0ABoca%20Raton%20%28Place%29%20at%20Anythink%20Libraries%20%0A-%20http%3A//link.anythinklibraries.org/resource/ewcC8cBWhdU/%3Fshare%3Dmail
 
+    raise Exception('"%s" does not look like a valid URI, I cannot serialize this as N3/Turtle. Perhaps you wanted to urlencode it?'%self)
+Exception: "https://img1.od-cdn.com/ImageType-200/0017-1/{73174EAD-C933-47CE-A8F2-7C2CBD057C89}Img200.jpg" does not look like a valid URI, I cannot serialize this as N3/Turtle. Perhaps you wanted to urlencode it?
 
 '''
 
@@ -90,8 +78,12 @@ def links_from_html(root, baseurl, look_for=HTML_LINKS):
         if e.xml_name in HTML_LINKS:
             for k, v in e.xml_attributes.items():
                 if k in HTML_LINKS[e.xml_name]:
-                    #if 'work' in baseurl: print(2, (v, baseurl, iri.absolutize(v, baseurl)))
-                    yield iri.absolutize(v, baseurl)
+                    try:
+                        link = iri.absolutize(v, baseurl, limit_schemes=('http', 'https'))
+                    except ValueError: #Ignore scheme
+                        continue
+                    link, frag = iri.split_fragment(link)
+                    yield link
 
 
 class crawltask(object):
@@ -102,7 +94,7 @@ class crawltask(object):
         #linkset_q and self._seen are shared across all tasks
         self._linkset_q = linkset_q
         self._seen = seen
-        self._idle_flags = idle_flags
+        self._shared_idle_flags = idle_flags
         self._front_page = front_page
 
     async def lln_handle_one_link(self, source, link):
@@ -118,19 +110,24 @@ class crawltask(object):
         try:
             async with aiohttp.ClientSession(headers=headers, connector=connector) as session:
                 try:
-                    async with session.get(link) as resp:
+                    continue_to_get = False
+                    async with session.head(link) as resp:
                         #self._logger.debug('[TASK {}] Content type ({}): {}'.format(self._task_id, link, resp.headers.get('CONTENT-TYPE')))
-                        if resp.status == 200 and resp.headers.get('CONTENT-TYPE') in HTML_CTYPES:
+                        #LIBRARY_LINK_HEADER tests it's an LLn page in the first place
+                        if resp.status == 200 and resp.headers.get('CONTENT-TYPE') in HTML_CTYPES and LIBRARY_LINK_HEADER in resp.headers:
                             #with async_timeout.timeout(10):
+                            continue_to_get = True
+                    if continue_to_get:
+                        async with session.get(link) as resp:
                             respurl = str(resp.url)
                             #Handle possible redirection
                             if respurl not in self._seen:
                                 body = await resp.text() #.read()
-                except (aiohttp.ClientOSError, aiohttp.ClientResponseError, aiohttp.client_exceptions.ServerDisconnectedError) as e:
+                except (aiohttp.ClientOSError, aiohttp.ClientResponseError, aiohttp.client_exceptions.ServerDisconnectedError, aiohttp.client_exceptions.InvalidURL) as e:
                     self._logger.debug('Error: {} [TASK {}] -> {}'.format(link, self._task_id, repr(e)))
 
             if body:
-                ls = self._sink.send((body, respurl, resp.headers, source, self._task_id))
+                ls = await self._sink.send((body, respurl, resp.headers, source, self._task_id))
                 #Trim links which have already been seen when queued (saves memory)
                 if ls:
                     #XXX: Use set intersection?
@@ -140,7 +137,7 @@ class crawltask(object):
             self._logger.debug('Above error in context of TASK {}, LINK {}, source {}'.format(self._task_id, link, source))
 
 
-    async def crawl_for_ld(self, mainloop_log_interval=20, mainloop_wait=2):
+    async def crawl_for_ld(self, mainloop_log_interval=20, mainloop_wait=3):
         '''
         linkset_queue - basically the inbound queue; URLs to be crawled (actually a set of links to be crawled in a single session)
         action_queue - basically the outbound queue; HTTP responses to be processed
@@ -151,33 +148,32 @@ class crawltask(object):
         funcname = 'crawl_for_ld'
         #url_hub = [root_url, "%s/sitemap.xml" % (root_url), "%s/robots.txt" % (root_url)]
 
-        #FIXME: incorporate a termination signal
-
         self._logger.debug('Launching {} [TASK {}].'.format(funcname, self._task_id))
         wakeup_counter = 0
 
         try:
             #Stop when all tasks have no more work to do
-            while not(all(self._idle_flags)):
+            while not(all(self._shared_idle_flags)):
                 wakeup_counter += 1
                 if wakeup_counter % mainloop_log_interval == 0:
-                    #TWEET_URL_PATTERN.format()
                     self._logger.debug('{} [TASK {}] still alive and has lived its main loop {} times. {} links seen.'.format(funcname, self._task_id, wakeup_counter, len(self._seen)))
                 while not self._linkset_q.empty():
                     #More work to do; not idle
-                    self._idle_flags[self._task_id] = False
-                    (source, linkset) = await self._linkset_q.get()
-                    #self._logger.debug('{} [TASK {}] dequeued source: {} linkset: {}.'.format(funcname, self._task_id, source, linkset))
-                    tasks = []
+                    self._shared_idle_flags[self._task_id] = False
+                    (source, links) = await self._linkset_q.get()
+                    self._logger.debug('{} [TASK {}] dequeued source: {} linkset: {}.'.format(funcname, self._task_id, source, links))
                     #Filter links again in case another worker has handled it since it was queued
-                    for link in (link for link in linkset if link not in self._seen):
+                    for link in (link for link in links if link not in self._seen):
                         await self.lln_handle_one_link(source, link)
                         self._seen.add(link)
+                        await asyncio.sleep(mainloop_wait)
+                    await asyncio.sleep(mainloop_wait)
 
                 #Flag self as idle
-                self._idle_flags[self._task_id] = True
+                self._shared_idle_flags[self._task_id] = True
                 await asyncio.sleep(mainloop_wait)
         except Exception as e:
+            raise e
             self._logger.debug('Error in {} [TASK {}]: {}.'.format(funcname, self._task_id, repr(e)))
         self._logger.debug('[{}] All tasks idle; TASK {} finishing.'.format(funcname, self._task_id))
 
@@ -206,14 +202,14 @@ class base_sink(object):
         raise NotImplementedError
 
     def _queue_links(self, root, respurl):
-        linkset = liblink_set()
+        linkset = set()
+        #linkset = liblink_set()
         for link in links_from_html(root, respurl):
             #If you wanted to not even visit any resources outside this domain, here is how
             #_, linkhost, _, _, _ = iri.split_uri_ref(link)
             #if self._fphost == linkhost:
             #    link, frag = iri.split_fragment(link)
             #    linkset.add(link)
-
-            link, frag = iri.split_fragment(link)
             linkset.add(link)
         return linkset
+

@@ -42,8 +42,7 @@ def run(frontpage, sinkcls, workers=None, pagesperfile=None, logger=None, **kwor
 
     loop = asyncio.get_event_loop()
     linkset_q = asyncio.Queue(loop=loop)
-    lln_page_q = asyncio.Queue(loop=loop)
-    linkset = (None, [frontpage])
+    linkset = (None, liblink_set([frontpage]))
     linkset_q.put_nowait(linkset)
     #set of URLs which have been self._seen and thus not re-crawled, added to here
     seen = liblink_set()

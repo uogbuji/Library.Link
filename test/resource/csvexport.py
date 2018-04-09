@@ -104,16 +104,19 @@ class csvexport_sink(base_sink):
             except ValueError:
                 resid = None
             if resid:
+                model = memory.connection()
+                rdfalite.toversa(body, model, respurl)
                 #Lock the file for 
                 resstem = resid[:3]
                 csvexport_sink.locks.setdefault(resstem, Lock())
+                #csvexport_sink.logger.debug('Awaiting lock on {}; TASK [{}].'.format(resstem, task_id))
+                print('Awaiting lock on {}; TASK [{}].'.format(resstem, task_id), file=sys.stderr)
                 await csvexport_sink.locks[resstem]
+                print('Acquired lock on {}; TASK [{}].'.format(resstem, task_id), file=sys.stderr)
 
                 try:
-                    model = memory.connection()
-                    rdfalite.toversa(body, model, respurl)
                     resstem_fpath = os.path.join(self.outfolder, resstem + '.csv')
-                    csvexists = os.access(resstem_fpath, os.F_OK)
+                    csvexists = os.path.exists(resstem_fpath)
                     #with gzip.open(resstem_fpath, 'at', newline='') as resstem_fp:
                     with open(resstem_fpath, 'at', newline='') as resstem_fp:
                         resstem_csv = csv.writer(resstem_fp, delimiter=',',
@@ -121,6 +124,8 @@ class csvexport_sink(base_sink):
                         vcsv.write(model, resstem_csv, self.rules, not csvexists, base=respurl, logger=csvexport_sink.logger)
                 finally:
                     csvexport_sink.locks[resstem].release()
+                    #csvexport_sink.logger.debug('Released lock on {}; TASK [{}].'.format(resstem, task_id))
+                    print('Released lock on {}; TASK [{}].'.format(resstem, task_id), file=sys.stderr)
 
             #self.save_ntriples()
             return linkset
