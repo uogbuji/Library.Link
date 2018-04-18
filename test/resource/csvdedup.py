@@ -3,6 +3,8 @@ import sys
 import argparse
 import csv
 
+HASH_WIDTH = 2
+
 def merge_rows(row1, row2):
     assert row1[0] == row2[0]
     assert len(row1) == len(row2)
@@ -32,7 +34,7 @@ def run(source, dest):
                 resource_rows[row[0]] = row
 
             for resid, inrow in resource_rows.items():
-                resstem = resid[:3]
+                resstem = resid[:HASH_WIDTH]
                 resstem_fpath = os.path.join(dest, resstem + '.csv')
                 resstem_fpath_exists = os.path.exists(resstem_fpath)
                 #Read then write back out

@@ -49,7 +49,8 @@ def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml'):
             lastmod = next(select_name(e, 'lastmod'))
             s = liblink_site()
             s.sitemap = loc.xml_value
-            s.base_url, _, tail = s.sitemap.partition('harvest/sitemap.xml')
+            s.url, _, tail = s.sitemap.partition('harvest/sitemap.xml')
+            s.base_url = s.url #Legacy property name
             #Early warning for funky URLs breaking stuff downstream
             assert not tail
             protocol, s.host, path, query, fragment = iri.split_uri_ref(s.sitemap)
@@ -83,6 +84,73 @@ def prep_site_model(site):
     except (urllib.error.HTTPError, urllib.error.URLError) as e:
         return None, e
     return model, sitetext
+
+
+def rdf_from_site(site, rules=None):
+    '''
+    >>> from librarylink.util import rdf_from_site
+    >>> g = rdf_from_site('http://link.denverlibrary.org')
+    >>> s = g.serialize(format='json-ld', indent=2)
+    >>> with open('denverlibrary.ld.json', 'wb') as fp: fp.write(s)
+
+    >>> rules = {'ignore-predicates': ['http://bibfra.me/', 'http://library.link/'], 'rename-predicates': {'http://library.link/vocab/branchOf': 'http://schema.org/branch'}}
+    >>> g = rdf_from_site('http://link.denverlibrary.org', rules=rules)
+    >>> s = g.serialize(format='json-ld', indent=2)
+    >>> with open('denverlibrary.ld.json', 'wb') as fp: fp.write(s)
+    '''
+    from rdflib import ConjunctiveGraph, URIRef, Literal, RDF, RDFS
+    from versa.writer.rdf import mock_bnode, prep, RDF_TYPE
+    #Also requires: pip install rdflib-jsonld
+    rules = rules or {}
+    ignore_pred = rules.get('ignore-predicates', set())
+    rename_pred = rules.get('rename-predicates', {})
+    model, sitetext = prep_site_model(site)
+    g = ConjunctiveGraph()
+    #Hoover up everything with a type
+    for o, r, t, a in model.match():
+        for oldp, newp in rename_pred.items():
+            if r == oldp: r = newp
+        for igp in ignore_pred:
+            if r.startswith(igp):
+                break
+        else:
+            g.add(prep(o, r, t))
+    return g
+
+
+def jsonize_site(site, rules=None):
+    '''
+    >>> from librarylink.util import jsonize_site
+    >>> obj = jsonize_site('http://link.denverlibrary.org')
+    >>> with open('denverlibrary.ld.json', 'w') as fp: json.dump(obj, fp, indent=2)
+
+    >>> rules = {'ignore-predicates': ['http://bibfra.me/', 'http://library.link/'], 'rename-predicates': {'http://library.link/vocab/branchOf': 'http://schema.org/branch'}}
+    >>> obj = jsonize_site('http://link.denverlibrary.org', rules=rules)
+    >>> with open('denverlibrary.ld.json', 'w') as fp: json.dump(obj, fp, indent=2)
+    '''
+    from versa.util import uniquify
+    from versa.writer import jsonld
+    rules = rules or {}
+    ignore_pred = rules.get('ignore-predicates', set())
+    rename_pred = rules.get('rename-predicates', {})
+    ignore_oftypes = rules.get('ignore-oftypes', {})
+    context = rules.get('context', {})
+    pre_model, _ = prep_site_model(site)
+    if not pre_model:
+        return None
+    uniquify(pre_model)
+    post_model = memory.connection()
+    for o, r, t, a in pre_model.match():
+        #print(o, r, t)
+        for oldp, newp in rename_pred.items():
+            if r == oldp: r = newp
+        for igp in ignore_pred:
+            if r.startswith(igp):
+                break
+        else:
+            post_model.add(o, r, t, a)
+    obj = jsonld.bind(post_model, context=context, ignore_oftypes=ignore_oftypes)
+    return obj
 
 
 def get_orgname(site, reuse=None):

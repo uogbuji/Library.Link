@@ -31,7 +31,7 @@ from librarylink.util import llnurl_ident
 from librarylink.crawler.framework import crawltask, base_sink, links_from_html, LIBRARY_LINK_HEADER
 
 SCHEMAORG = 'http://schema.org/'
-
+HASH_WIDTH = 2
 
 class csvexport_sink(base_sink):
     @staticmethod
@@ -107,7 +107,7 @@ class csvexport_sink(base_sink):
                 model = memory.connection()
                 rdfalite.toversa(body, model, respurl)
                 #Lock the file for 
-                resstem = resid[:3]
+                resstem = resid[:HASH_WIDTH]
                 csvexport_sink.locks.setdefault(resstem, Lock())
                 #csvexport_sink.logger.debug('Awaiting lock on {}; TASK [{}].'.format(resstem, task_id))
                 print('Awaiting lock on {}; TASK [{}].'.format(resstem, task_id), file=sys.stderr)
