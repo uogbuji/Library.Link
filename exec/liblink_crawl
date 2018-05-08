@@ -1,12 +1,10 @@
 #!/usr/bin/env python
-#Ideas from: https://github.com/mehmetkose/python3.5-async-crawler
 '''
+Crawl all pages within a Library.Link site. Provide a script to perform needed work for each page
 
 liblink_crawl --script=test/resource/quickinfo.py http://link.anythinklibraries.org/
 
 '''
-
-#python -m liblinkbots.crawler.simplelinkchecker http://link.cuyahogalibrary.org/ /tmp/crawl.log
 
 import re
 import sys

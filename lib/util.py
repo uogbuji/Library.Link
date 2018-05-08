@@ -10,13 +10,18 @@ from itertools import *
 import collections.abc
 
 import requests
+try:
+    from cachecontrol import CacheControl
+    from cachecontrol.caches.file_cache import FileCache
+    CACHEDIR = '.web_cache'
+except ImportError:
+    CACHEDIR = None
 
-#from versa.writer.rdfs import prep as statement_prep
 from versa.driver import memory
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 from versa.reader import rdfalite
 from versa.reader.rdfalite import RDF_NS, SCHEMAORG_NS
-from versa import util
+from versa import util as versautil
 
 from bibframe import BFZ, BL
 from bibframe.zextra import LL
@@ -67,15 +72,16 @@ def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml'):
     ts.parse(result.text)
     yield from nodes
 
-try:
-    from cachecontrol import CacheControl
-    from cachecontrol.caches.file_cache import FileCache
-    all_sites.cachedir = '.web_cache'
-except ImportError:
-    pass
+
+if CACHEDIR: all_sites.cachedir = '.web_cache'
 
 
-def prep_site_model(site):
+def load_rdfa_page(site):
+    '''
+    Helper to load RDFa page as text, plus load a Versa model with the metadata
+    
+    Returns a versa memory model and the raw site text, except in eror case where it returns None and the error
+    '''
     model = memory.connection()
     try:
         with urllib.request.urlopen(site) as resourcefp:
@@ -85,6 +91,9 @@ def prep_site_model(site):
         return None, e
     return model, sitetext
 
+
+#Legacy name
+prep_site_model = load_rdfa_page
 
 def rdf_from_site(site, rules=None):
     '''
@@ -104,7 +113,9 @@ def rdf_from_site(site, rules=None):
     rules = rules or {}
     ignore_pred = rules.get('ignore-predicates', set())
     rename_pred = rules.get('rename-predicates', {})
-    model, sitetext = prep_site_model(site)
+    model, sitetext = load_rdfa_page(site)
+    if not model:
+        return None
     g = ConjunctiveGraph()
     #Hoover up everything with a type
     for o, r, t, a in model.match():
@@ -133,9 +144,10 @@ def jsonize_site(site, rules=None):
     rules = rules or {}
     ignore_pred = rules.get('ignore-predicates', set())
     rename_pred = rules.get('rename-predicates', {})
-    ignore_oftypes = rules.get('ignore-oftypes', {})
+    ignore_oftypes = rules.get('ignore-oftypes', [])
+    invert = rules.get('invert', {})
     context = rules.get('context', {})
-    pre_model, _ = prep_site_model(site)
+    pre_model, _ = load_rdfa_page(site)
     if not pre_model:
         return None
     uniquify(pre_model)
@@ -144,6 +156,10 @@ def jsonize_site(site, rules=None):
         #print(o, r, t)
         for oldp, newp in rename_pred.items():
             if r == oldp: r = newp
+        for rpre, rpost in invert.items():
+            if r == rpre:
+                assert isinstance(t, I)
+                o, r, t = t, rpost, o
         for igp in ignore_pred:
             if r.startswith(igp):
                 break
@@ -167,18 +183,18 @@ def get_orgname(site, reuse=None):
     if reuse:
         model, sitetext = reuse
     else:
-        model, sitetext = prep_site_model(site)
+        model, sitetext = load_rdfa_page(site)
     if not model:
         return None
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'Organization'):
-        name = util.simple_lookup(model, o, SCHEMAORG_NS + 'name')
+        name = versautil.simple_lookup(model, o, SCHEMAORG_NS + 'name')
         if name is not None: return name
     #schema:Organization not reliable the way it's used in LLN
-    #orgentity = util.simple_lookup_byvalue(model, RDF_NS + 'type', SCHEMAORG_NS + 'LibrarySystem')
-    #orgentity = util.simple_lookup_byvalue(model, SCHEMAORG_NS + 'url', baseurl)
+    #orgentity = versautil.simple_lookup_byvalue(model, RDF_NS + 'type', SCHEMAORG_NS + 'LibrarySystem')
+    #orgentity = versautil.simple_lookup_byvalue(model, SCHEMAORG_NS + 'url', baseurl)
     #print(orgentity)
-    #name = util.simple_lookup(model, orgentity, SCHEMAORG_NS + 'name')
-    #name = util.simple_lookup(model, baseurl + '#_default', BL + 'name')
+    #name = versautil.simple_lookup(model, orgentity, SCHEMAORG_NS + 'name')
+    #name = versautil.simple_lookup(model, baseurl + '#_default', BL + 'name')
     #return name
 
 
@@ -215,23 +231,23 @@ def get_orgdetails(site, reuse=None):
     if reuse:
         model, sitetext = reuse
     else:
-        model, sitetext = prep_site_model(site)
+        model, sitetext = load_rdfa_page(site)
     if not model:
         return None
     details = {'name': None, 'group': None, 'groupname': None, 'network': None, 'features': set()}
     id_ = None
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'LibrarySystem'):
         id_ = o
-        details['name'] = util.simple_lookup(model, o, SCHEMAORG_NS + 'name').strip()
+        details['name'] = next(versautil.lookup(model, o, SCHEMAORG_NS + 'name'), '').strip()
         break
 
     details['id'] = id_
     #for o, r, t, a in model.match(None, SCHEMAORG_NS + 'member'):
     #    group = t.split('#')[0]
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'Consortium'):
-        details['group'] = util.simple_lookup(model, o, SCHEMAORG_NS + 'url')
+        details['group'] = versautil.simple_lookup(model, o, SCHEMAORG_NS + 'url')
         #group = o.split('#')[0]
-        details['groupname'] = util.simple_lookup(model, o, SCHEMAORG_NS + 'name').strip()
+        details['groupname'] = next(versautil.lookup(model, o, SCHEMAORG_NS + 'name'), '').strip()
         break
 
     network = 'zviz'
@@ -266,7 +282,7 @@ def get_orgdetails(site, reuse=None):
         break
 
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'LibrarySystem'):
-        logo = util.simple_lookup(model, o, SCHEMAORG_NS + 'logo')
+        logo = versautil.simple_lookup(model, o, SCHEMAORG_NS + 'logo')
         details['logo'] = logo.strip() if logo else logo
         break
 
@@ -286,22 +302,22 @@ def get_branches(site, reuse=None):
     if reuse:
         model, sitetext = reuse
     else:
-        model, sitetext = prep_site_model(site)
+        model, sitetext = load_rdfa_page(site)
     if not model:
         return None
     branches = []
     for o, r, t, a in model.match(None, RDF_NS + 'type', SCHEMAORG_NS + 'Library'):
         id_ = o
-        name = util.simple_lookup(model, o, SCHEMAORG_NS + 'name').strip()
-        url = util.simple_lookup(model, o, SCHEMAORG_NS + 'url')
-        loc = util.simple_lookup(model, o, SCHEMAORG_NS + 'location')
-        addr = util.simple_lookup(model, o, SCHEMAORG_NS + 'address')
+        name = next(versautil.lookup(model, o, SCHEMAORG_NS + 'name'), '').strip()
+        url = versautil.simple_lookup(model, o, SCHEMAORG_NS + 'url')
+        loc = versautil.simple_lookup(model, o, SCHEMAORG_NS + 'location')
+        addr = versautil.simple_lookup(model, o, SCHEMAORG_NS + 'address')
         #Goes schema:Library - schema:location -> schema:Place - schema:geo -> Coordinates
         if loc:
-            loc = util.simple_lookup(model, loc, SCHEMAORG_NS + 'geo')
+            loc = versautil.simple_lookup(model, loc, SCHEMAORG_NS + 'geo')
         if loc:
-            lat = util.simple_lookup(model, loc, SCHEMAORG_NS + 'latitude')
-            long_ = util.simple_lookup(model, loc, SCHEMAORG_NS + 'longitude')
+            lat = versautil.simple_lookup(model, loc, SCHEMAORG_NS + 'latitude')
+            long_ = versautil.simple_lookup(model, loc, SCHEMAORG_NS + 'longitude')
 
         if addr:
             #rdf:type	schema:PostalAddress
@@ -310,11 +326,11 @@ def get_branches(site, reuse=None):
             #schema:addressRegion	"OH"@en
             #schema:postalCode	"44134"@en
             #schema:addressCountry	"US"@en
-            street = util.simple_lookup(model, addr, SCHEMAORG_NS + 'streetAddress')
-            locality = util.simple_lookup(model, addr, SCHEMAORG_NS + 'addressLocality')
-            region = util.simple_lookup(model, addr, SCHEMAORG_NS + 'addressRegion')
-            postcode = util.simple_lookup(model, addr, SCHEMAORG_NS + 'postalCode')
-            country = util.simple_lookup(model, addr, SCHEMAORG_NS + 'addressCountry')
+            street = versautil.simple_lookup(model, addr, SCHEMAORG_NS + 'streetAddress')
+            locality = versautil.simple_lookup(model, addr, SCHEMAORG_NS + 'addressLocality')
+            region = versautil.simple_lookup(model, addr, SCHEMAORG_NS + 'addressRegion')
+            postcode = versautil.simple_lookup(model, addr, SCHEMAORG_NS + 'postalCode')
+            country = versautil.simple_lookup(model, addr, SCHEMAORG_NS + 'addressCountry')
 
         branches.append((
             id_,
@@ -393,7 +409,7 @@ def simplify_link(url):
 
 class liblink_set(collections.abc.MutableSet):
     '''
-    Smart collection of URLs that is smart about Library.Link URLs and how to dedup them for set operations
+    Smart collection of URLs that understands Library.Link URLs and how to dedup them for set operations
     It can also manage a set of exclusions, e.g. to eliminate a URL for repeat processing
     '''
     def __init__(self, iterable=None):
@@ -430,10 +446,30 @@ class liblink_set(collections.abc.MutableSet):
         s = 'RAWSET: ' + repr(self._rawset) + '\n' + 'EXCLUSIONS: ' + repr(self._exclusions)
         return s
 
-    #?
-    #def __reversed__(self):
-    #def pop(self, last=True):
-    #def __repr__(self):
 
 class liblink_site(object):
-    pass
+    '''
+    High-level (sitemap-style) information about a Library.Link site
+    
+    >>> from librarylink.util import liblink_site
+    >>> s = liblink_site('http://link.worthingtonlibraries.org')
+    >>> s.url
+    'http://link.worthingtonlibraries.org'
+    >>> s.host
+    'link.worthingtonlibraries.org'
+    >>> s.sitemap
+    'http://link.worthingtonlibraries.org/harvest/sitemap.xml'
+    >>> s.lastmod
+    '2018-04-26T22:58:59Z'
+    '''
+    def __init__(self, baseurl=None):
+        if baseurl:
+            model, _ = load_rdfa_page(baseurl)
+            if not model:
+                raise RuntimeError(baseurl, 'doesn\'t appear to be a Library.Link site')
+            #<dd property="dcterms:modified">2018-04-17T04:17:32Z</dd>
+            
+            self.lastmod = next(versautil.lookup(model, None, 'http://purl.org/dc/terms/modified'), None)
+            self.sitemap = iri.absolutize('/harvest/sitemap.xml', baseurl)
+            self.url = baseurl
+            protocol, self.host, path, query, fragment = iri.split_uri_ref(baseurl)
