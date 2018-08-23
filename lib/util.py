@@ -3,6 +3,7 @@
 
 import re
 import sys
+import http
 import logging
 import urllib
 import urllib.request
@@ -76,19 +77,24 @@ def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml'):
 if CACHEDIR: all_sites.cachedir = '.web_cache'
 
 
-def load_rdfa_page(site):
+def load_rdfa_page(site, max_retries=1):
     '''
     Helper to load RDFa page as text, plus load a Versa model with the metadata
     
     Returns a versa memory model and the raw site text, except in eror case where it returns None and the error
     '''
-    model = memory.connection()
-    try:
-        with urllib.request.urlopen(site) as resourcefp:
-            sitetext = resourcefp.read()
-            rdfalite.toversa(sitetext, model, site)
-    except (urllib.error.HTTPError, urllib.error.URLError) as e:
-        return None, e
+    retry_count = 0
+    while True:
+        model = memory.connection()
+        try:
+            with urllib.request.urlopen(site) as resourcefp:
+                sitetext = resourcefp.read()
+                rdfalite.toversa(sitetext, model, site)
+            break #Success, so break out of retry loop
+        except (urllib.error.HTTPError, urllib.error.URLError, http.client.RemoteDisconnected) as e:
+            retry_count += 1
+            if retry_count >= max_retries:
+                return None, e
     return model, sitetext
 
 
@@ -154,9 +160,9 @@ def jsonize_site(site, rules=None):
     post_model = memory.connection()
     for o, r, t, a in pre_model.match():
         #print(o, r, t)
-        for oldp, newp in rename_pred.items():
+        for oldp, newp in rename_pred:
             if r == oldp: r = newp
-        for rpre, rpost in invert.items():
+        for rpre, rpost in invert:
             if r == rpre:
                 assert isinstance(t, I)
                 o, r, t = t, rpost, o

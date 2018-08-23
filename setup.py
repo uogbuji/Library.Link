@@ -60,17 +60,9 @@ Uche Ogbuji < uche@ogbuji.net >
 
 # Install
 
-Requires:
+Requires Python 3.5+
 
-* Python 3.5+
-* `amara3-xml` package
-* `versa` package
-* `html5lib` package
-* `pytest` (for running the test suite)
-
-For all the latter, you can do:
-
-pip install pytest amara3-xml html5lib versa LibraryLink
+    pip install LibraryLink
 
 # liblink_resource_summary
 
