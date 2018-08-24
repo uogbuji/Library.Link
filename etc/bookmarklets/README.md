@@ -1,13 +1,17 @@
 
 # Install
 
+[Can't easily host the bookmarklets](https://github.com/github/markup/issues/79) on GitHub, so coming soon…
+
 ## isbnlookup.js
 
-Drag [this icon](javascript:(function()%7Bfunction callback()%7B(function(%24)%7Bvar jQuery%3D%24%3Bvar isbn13 %3D null%3Bvar am_isbn13_label %3D %24('table%23productDetailsTable').find("b%3Acontains('ISBN-13')")%3Bvar bn_isbn13_label %3D %24('div%23ProductDetailsTab').find("th%3Acontains('ISBN-13')")%3Bif (am_isbn13_label.length)%7Bvar isbn13 %3D am_isbn13_label%5B0%5D.nextSibling.nodeValue.trim().replace('-'%2C '')%3B%7D else if (bn_isbn13_label.length) %7Bvar isbn13 %3D bn_isbn13_label.next('td').text().trim().replace('-'%2C '')%3B%7Dif (isbn13 !%3D null) %7Bvar bnmhead %3D 'https%3A%2F%2Flabs.library.link%2Fexample%2Fnearbyisbn.html%3Fisbn%3D'%3Bvar bnmtail %3D '%26radius%3D100'%3Bwindow.location %3D bnmhead%2Bisbn13%2Bbnmtail%3B%7D else %7Balert('ISBN-13 not found on page.')%3B%7D%7D)(jQuery.noConflict(true))%7Dvar s%3Ddocument.createElement("script")%3Bs.src%3D"https%3A%2F%2Fajax.googleapis.com%2Fajax%2Flibs%2Fjquery%2F1.11.1%2Fjquery.min.js"%3Bif(s.addEventListener)%7Bs.addEventListener("load"%2Ccallback%2Cfalse)%7Delse if(s.readyState)%7Bs.onreadystatechange%3Dcallback%7Ddocument.body.appendChild(s)%3B%7D)()) to your bookmarks bar or folder
+Code:
+
+    javascript:(function()%7Bfunction callback()%7B(function(%24)%7Bvar jQuery%3D%24%3Bvar isbn13 %3D null%3Bvar am_isbn13_label %3D %24('table%23productDetailsTable').find("b%3Acontains('ISBN-13')")%3Bvar bn_isbn13_label %3D %24('div%23ProductDetailsTab').find("th%3Acontains('ISBN-13')")%3Bif (am_isbn13_label.length)%7Bvar isbn13 %3D am_isbn13_label%5B0%5D.nextSibling.nodeValue.trim().replace('-'%2C '')%3B%7D else if (bn_isbn13_label.length) %7Bvar isbn13 %3D bn_isbn13_label.next('td').text().trim().replace('-'%2C '')%3B%7Dif (isbn13 !%3D null) %7Bvar bnmhead %3D 'https%3A%2F%2Flabs.library.link%2Fexample%2Fnearbyisbn.html%3Fisbn%3D'%3Bvar bnmtail %3D '%26radius%3D100'%3Bwindow.location %3D bnmhead%2Bisbn13%2Bbnmtail%3B%7D else %7Balert('ISBN-13 not found on page.')%3B%7D%7D)(jQuery.noConflict(true))%7Dvar s%3Ddocument.createElement("script")%3Bs.src%3D"https%3A%2F%2Fajax.googleapis.com%2Fajax%2Flibs%2Fjquery%2F1.11.1%2Fjquery.min.js"%3Bif(s.addEventListener)%7Bs.addEventListener("load"%2Ccallback%2Cfalse)%7Delse if(s.readyState)%7Bs.onreadystatechange%3Dcallback%7Ddocument.body.appendChild(s)%3B%7D)()
 
 # For developers
 
-Use [the MrColes bookmarklet creator](https://mrcoles.com/bookmarklet/)
+Can use [the MrColes bookmarklet creator](https://mrcoles.com/bookmarklet/) on the source .js files in this directory.
 
 # Notes on isbnlookup.js
 
