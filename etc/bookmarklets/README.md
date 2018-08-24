@@ -1,7 +1,15 @@
 
+# Install
+
+## isbnlookup.js
+
+Drag [this icon](javascript:(function()%7Bfunction callback()%7B(function(%24)%7Bvar jQuery%3D%24%3Bvar isbn13 %3D null%3Bvar am_isbn13_label %3D %24('table%23productDetailsTable').find("b%3Acontains('ISBN-13')")%3Bvar bn_isbn13_label %3D %24('div%23ProductDetailsTab').find("th%3Acontains('ISBN-13')")%3Bif (am_isbn13_label.length)%7Bvar isbn13 %3D am_isbn13_label%5B0%5D.nextSibling.nodeValue.trim().replace('-'%2C '')%3B%7D else if (bn_isbn13_label.length) %7Bvar isbn13 %3D bn_isbn13_label.next('td').text().trim().replace('-'%2C '')%3B%7Dif (isbn13 !%3D null) %7Bvar bnmhead %3D 'https%3A%2F%2Flabs.library.link%2Fexample%2Fnearbyisbn.html%3Fisbn%3D'%3Bvar bnmtail %3D '%26radius%3D100'%3Bwindow.location %3D bnmhead%2Bisbn13%2Bbnmtail%3B%7D else %7Balert('ISBN-13 not found on page.')%3B%7D%7D)(jQuery.noConflict(true))%7Dvar s%3Ddocument.createElement("script")%3Bs.src%3D"https%3A%2F%2Fajax.googleapis.com%2Fajax%2Flibs%2Fjquery%2F1.11.1%2Fjquery.min.js"%3Bif(s.addEventListener)%7Bs.addEventListener("load"%2Ccallback%2Cfalse)%7Delse if(s.readyState)%7Bs.onreadystatechange%3Dcallback%7Ddocument.body.appendChild(s)%3B%7D)()) to your bookmarks bar or folder
+
+# For developers
+
 Use [the MrColes bookmarklet creator](https://mrcoles.com/bookmarklet/)
 
-## Notes on isbnlookup.js
+# Notes on isbnlookup.js
 
 Use the jQuery option with the bookmarklet creator.
 
@@ -47,6 +55,28 @@ If not for popup blocker problems we could do:
         alert('ISBN-13 not found on page.');
     }
 
+
+# Favicon
+
+I [created a Favico](https://www.favicon-generator.org/) from [this CC0 image](https://pixabay.com/en/icon-position-map-location-icon-2070751/).
+
+    <link rel="apple-touch-icon" sizes="57x57" href="/apple-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/apple-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/apple-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/apple-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/apple-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/apple-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/apple-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-icon-180x180.png">
+    <link rel="icon" type="image/png" sizes="192x192"  href="/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="/ms-icon-144x144.png">
+    <meta name="theme-color" content="#ffffff">
 
 # Resources
 
