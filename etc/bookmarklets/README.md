@@ -1,7 +1,7 @@
 
 # Install
 
-[Can't easily host the bookmarklets](https://github.com/github/markup/issues/79) on GitHub, so coming soon…
+[Can't easily host the bookmarklets](https://github.com/github/markup/issues/79) on GitHub, so now [live on Library.Link Labs](http://labs.library.link/bookmarklets/).
 
 ## isbnlookup.js
 
@@ -12,6 +12,12 @@ Code:
 # For developers
 
 Can use [the MrColes bookmarklet creator](https://mrcoles.com/bookmarklet/) on the source .js files in this directory.
+
+To unquote & prettify bookmarklet JSON, use Python:
+
+    import urllib.parse; urllib.parse.unquote(BMLINK)
+
+Then paste the result into a beautifier such as [jsbeautifier.org](http://jsbeautifier.org/).
 
 # Notes on isbnlookup.js
 

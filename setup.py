@@ -28,10 +28,11 @@ SCRIPTS = [
 ]
 
 CORE_REQUIREMENTS = [
-    'amara3-xml',
-    'amara3-iri', #FIXME: should be unneeded once amara3-xml setup.py is fixed
-    'versa', #FIXME: should be unneeded once amara3-xml setup.py is fixed
-    'html5lib', #FIXME: should be unneeded once versa setup.py is fixed
+    'amara3.xml',
+    #'amara3-iri', #FIXME: should be unneeded once amara3-xml setup.py is fixed
+    #'versa', #FIXME: should be unneeded once amara3-xml setup.py is fixed
+    #'html5lib', #FIXME: should be unneeded once versa setup.py is fixed
+    'rdflib',
 ]
 
 

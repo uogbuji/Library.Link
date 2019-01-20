@@ -98,6 +98,43 @@ def load_rdfa_page(site, max_retries=1):
     return model, sitetext
 
 
+async def rdfa_from_page(url, session=None, max_retries=1):
+    '''
+    Async helper to load RDFa page as text, plus load a Versa model with the metadata
+    
+    Yields a versa memory model, the raw site text and HTTP response info, except in error case where it returns None and the exception
+
+    >>> from amara3.asynctools import go_async
+    >>> from librarylink.util import rdfa_from_page
+    >>> from versa import util as versautil
+    >>> url = "http://link.crlibrary.org/portal/Estamos-en-un-libro-por-Mo-Willems--traducido/ZAxkTVTDCxE/"
+    >>> model, sitetext, response = go_async(rdfa_from_page(url))
+    >>> next(versautil.lookup(model, 'http://link.crlibrary.org/resource/zXft1yv0T9k/', 'http://schema.org/name'))
+    'Libros y lectura -- Novela juvenil'
+    '''
+    retry_count = 0
+    while True:
+        model = memory.connection()
+        try:
+            if session == None:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url) as response:
+                        body = await response.read()
+                        rdfalite.toversa(body, model, url)
+                        return model, body, response
+            else:
+                async with session.get(url) as response:
+                    body = await response.read()
+                    rdfalite.toversa(body, model, url)
+                    return model, body, response
+        except Exception as e:
+            #print(url, f'[EXCEPTION {e}], context: {context}')
+            retry_count += 1
+            if retry_count >= max_retries:
+                return None, e, None
+
+
 #Legacy name
 prep_site_model = load_rdfa_page
 

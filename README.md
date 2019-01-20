@@ -29,3 +29,26 @@ parse_rdfa --rdfttl=foo.ttl "http://link.houstonlibrary.org/portal/Half-of-a-yel
 ```
 
 Which outputs RDF Turtle to a file `foo.ttl`
+
+
+
+# Technical background on the Library.Link network
+
+Network-level resources
+
+Take an ID 2_8BKlrtCTI
+
+There is 
+
+* http://library.link/resource/2_8BKlrtCTI/ : HTML rendered from feed.json
+
+
+
+The top-level @type in brief.json & feed.json is preferredType
+
+http://library.link/resource/2_8BKlrtCTI/brief.json
+
+
+
+
+

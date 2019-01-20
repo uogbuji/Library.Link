@@ -6,6 +6,9 @@ Tool to parse RDFa 1.1 Lite
 
 liblink_resource_summary "http://link.houstonlibrary.org/portal/Half-of-a-yellow-sun-Chimamanda-Ngozi/n7KqqbZFJuM/"
 
+liblink_resource_summary n7KqqbZFJuM
+
+
 """
 
 import re
@@ -22,57 +25,119 @@ import logging
 import rdflib
 
 from amara3 import iri
+from amara3.asynctools import go_async
 
 from versa.driver import memory
+from versa import util as versautil
 from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 from versa.reader.rdfalite import parse, rdfize, DEFAULT_PREFIXES
+from versa.terms import RDF_TYPE
+
+from librarylink.util import rdfa_from_page
 
 
-def run(inputs=None, rdfttl=None, rdfxml=None, verbose=False):
+LL_RESOURCE_BASE = 'http://library.link/resource/'
+
+
+async def network_resource_content(url, session=None, max_retries=1):
+    '''
+    Async helper to get JSON content from network resource page
+    
+    Returns a JSON object
+
+    >>> from amara3.asynctools import go_async
+    >>> from librarylink.util import rdfa_from_page
+    >>> from versa import util as versautil
+    >>> url = "http://library.link/resource/2_8BKlrtCTI/brief.json"
+    >>> obj = go_async(network_resource_content(url))
+    '''
+    retry_count = 0
+    while True:
+        model = memory.connection()
+        try:
+            if session == None:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url) as response:
+                        obj = await response.json()
+                        return obj
+            else:
+                async with session.get(url) as response:
+                    obj = await response.json()
+                    return obj
+        except Exception as e:
+            #print(url, f'[EXCEPTION {e}], context: {context}')
+            retry_count += 1
+            if retry_count >= max_retries:
+                return None
+
+#Base-64 alphabet is: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-/
+NON_BASE64_PAT = re.compile(r'[^A-Za-z0-9\+/\-_]')
+def couldbe_resourcehash(text):
+    return not NON_BASE64_PAT.search(text)
+
+
+def run(inputs, commands, verbose=False):
     '''
     See the command line help
     '''
+    action_taken = False
+    rdfttl, rdfxml, rtype = commands
     logger = logging.getLogger('parse_rdfa')
     if verbose:
         logging.basicConfig(level=logging.DEBUG)
 
     for inp in inputs:
-        def process(fp, uri):
-            if any((rdfttl, rdfxml)):
-                g = rdflib.Graph()
-                for k, v in DEFAULT_PREFIXES.items():
-                    g.bind(k, v)
-                output = rdfize(g)
-                #Prime coroutine
-                next(output)
-                parse(fp, output, I(uri))
-                #print(len(g))
-                if rdfttl:
-                    rdfttl.write(g.serialize(format="turtle"))
-                elif rdfxml:
-                    rdfxml.write(g.serialize(format="pretty-xml"))
+        def rdf_process(fp, uri):
+            g = rdflib.Graph()
+            for k, v in DEFAULT_PREFIXES.items():
+                g.bind(k, v)
+            output = rdfize(g)
+            #Prime coroutine
+            next(output)
+            parse(fp, output, I(uri))
+            #print(len(g))
+            if rdfttl:
+                rdfttl.write(g.serialize(format="turtle"))
+            elif rdfxml:
+                rdfxml.write(g.serialize(format="pretty-xml"))
 
-        if iri.matches_uri_syntax(inp):
+        if couldbe_resourcehash(inp.strip()):
+            inp = inp.strip()
+            rid = inp
+            inp = f'{LL_RESOURCE_BASE}{inp}/brief.json'
+            if verbose:
+                print(f'Retrieving content from {rid}')
+            if rtype:
+                action_taken = True
+                obj = go_async(network_resource_content(inp))
+                if obj:
+                    rtypes = [obj['@type']]
+                    print(f'{rid}: TYPES: {"|".join(rtypes)}')
+                else:
+                    print(f'Unable to retrieve JSON from {inp}', file=sys.stderr)
+        elif iri.matches_uri_syntax(inp):
             with urllib.request.urlopen(inp) as resourcefp:
-                process(resourcefp, inp)
+                if any((rdfttl, rdfxml)):
+                    action_taken = True
+                    rdf_process(resourcefp, inp)
         else:
             with open(inp) as resourcefp:
-                process(resourcefp, iri.os_path_to_uri(inp))
+                if any((rdfttl, rdfxml)):
+                    action_taken = True
+                    rdf_process(resourcefp, iri.os_path_to_uri(inp))
 
-    #output_list = []
-    #output = dumb_triples(output_list)
-    #Prime coroutine
-    #next(output)
-    #parse(response, I(LINK), output)
-    #import pprint; pprint.pprint(output_list)
+    if not action_taken:
+        print('Nothing to do!', file=sys.stderr)
 
     return
 
 
-# Handle the command-line arguments
+COMMANDS = {
+    'rdfttl': 'Send full RDF Turtle summary to file',
+    'type': 'Send resource type to stdout',
+}
 
-#import signal
-#import shutil
 
 if __name__ == '__main__':
     #parser = argparse.ArgumentParser(prog="bootstrap", add_help=False)
@@ -83,13 +148,14 @@ if __name__ == '__main__':
         help='File where RDF Turtle output should be written')
     parser.add_argument('--rdfxml', type=argparse.FileType('wb'),
         help='File where RDF XML output should be written')
-    #parser.add_argument('-b', '--base', metavar="IRI", #dest="base",
-    #    help='Base IRI to be used for parsing the Versa. Can be overridden by a base statement within the docheader')
-    parser.add_argument('-v', '--verbose', action='store_false',
+    parser.add_argument('--type', action='store_true',
+        help='Output just the type of the resource')
+    parser.add_argument('-v', '--verbose', action='store_true',
         help='whether or not to show verbose error messages')
     #
     args = parser.parse_args()
+    
 
-    run(inputs=args.inputs, rdfttl=args.rdfttl, rdfxml=args.rdfxml, verbose=args.verbose)
+    run(args.inputs, (args.rdfttl, args.rdfxml, args.type), verbose=args.verbose)
     if args.rdfttl: args.rdfttl.close()
     if args.rdfxml: args.rdfxml.close()

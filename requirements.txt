@@ -1,13 +1,8 @@
-amara3-iri
+amara3.xml
 
 requests
 rdflib
-pytest
 versa
-html5lib
-
-#From Versa pyreqs.txt
-amara3-xml
 
 #Optional bits
 #CacheControl[filecache]

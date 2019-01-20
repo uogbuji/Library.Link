@@ -10,9 +10,9 @@ if (typeof gr_isbn13 != 'undefined'){
     var isbn13 = bn_isbn13_label.next('td').text().trim().replace('-', '');
 }
 if (isbn13 != null) {
-    var bnmhead = 'https://labs.library.link/example/nearbyisbn.html?isbn=';
+    var bnmhead = 'https://labs.library.link/services/borrow/?isbn=';
     var bnmtail = '&radius=100&embed=true&referrer='+encodeURI(window.location);
-    window.location = bnmhead+isbn13+bnmtail;
+    window.location = bnmhead + isbn13 + bnmtail;
 } else {
     alert('ISBN-13 not found on page.');
 }
