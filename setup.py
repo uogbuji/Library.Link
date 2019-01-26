@@ -25,6 +25,7 @@ PACKAGES = ['librarylink', 'librarylink.crawler']
 SCRIPTS = [
     'exec/liblink_resource_summary',
     'exec/liblink_crawl',
+    'exec/liblink_title_report',
 ]
 
 CORE_REQUIREMENTS = [

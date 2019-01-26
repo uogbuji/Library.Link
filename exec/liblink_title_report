@@ -1,0 +1,193 @@
+#!/usr/bin/env python
+"""
+liblink_title_report
+
+Tool to extract data from title
+
+liblink_title_report "Things Fall Apart"
+
+
+"""
+
+import re
+import sys
+import os
+import glob
+import json
+import time
+import asyncio
+import argparse
+from itertools import islice
+import logging
+
+import aiohttp
+
+from amara3 import iri
+from amara3.asynctools import go_async
+
+from bibframe.isbnplus import isbn_list, compute_ean13_check
+
+from versa.driver import memory
+from versa import util as versautil
+from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
+from versa.reader.rdfalite import parse, rdfize, DEFAULT_PREFIXES
+from versa.terms import RDF_TYPE
+
+#from librarylink.util import rdfa_from_page
+
+
+LL_RESOURCE_BASE = 'http://library.link/resource/'
+LL_ISBN_STEMPLATE = 'http://library.link/id/isbn/{isbn}/brief.json'
+OPENLIBRARY_TITLESEARCHBASE = 'http://openlibrary.org/search.json'
+
+
+async def openlibrary_search_title(title, session=None, max_retries=1):
+    '''
+    Async helper to get information from isbn.nu for a title query
+    
+    Returns a JSON object
+
+    >>> from amara3.asynctools import go_async
+    >>> from librarylink.util import rdfa_from_page
+    >>> from versa import util as versautil
+    >>> url = "http://library.link/resource/2_8BKlrtCTI/brief.json"
+    >>> obj = go_async(network_resource_content(url))
+    '''
+    retry_count = 0
+    qparams = {'title': title}
+    while True:
+        model = memory.connection()
+        try:
+            if session == None:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(OPENLIBRARY_TITLESEARCHBASE, params=qparams) as response:
+                        #OL doesn't use proper response type, so gotta disable checks: https://docs.aiohttp.org/en/stable/client_advanced.html#disabling-content-type-validation-for-json-responses
+                        obj = await response.json(content_type=None)
+                        return obj
+            else:
+                async with session.get(OPENLIBRARY_TITLESEARCHBASE, params=qparams) as response:
+                    obj = await response.json(content_type=None)
+                    return obj
+        except Exception as e:
+            print(f'title: {title}, EXCEPTION {e}')
+            retry_count += 1
+            if retry_count >= max_retries:
+                return None
+
+
+async def network_isbn_info(isbn, session=None, max_retries=1):
+    '''
+    Async helper to get JSON content from network resource page
+    
+    Returns a JSON object
+
+    >>> from amara3.asynctools import go_async
+    >>> from librarylink.util import rdfa_from_page
+    >>> from versa import util as versautil
+    >>> url = "http://library.link/resource/2_8BKlrtCTI/brief.json"
+    >>> obj = go_async(network_resource_content(url))
+    '''
+    retry_count = 0
+    url = LL_ISBN_STEMPLATE.format(**{'isbn': isbn})
+    #print('processing', url, file=sys.stderr)
+    while True:
+        await asyncio.sleep(0.2)
+        model = memory.connection()
+        try:
+            if session == None:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url) as response:
+                        obj = await response.json()
+                        return isbn, obj
+            else:
+                async with session.get(url) as response:
+                    obj = await response.json()
+                    return isbn, obj
+        except Exception as e:
+            #print(url, f'[EXCEPTION {e}], context: {context}', file=sys.stderr)
+            retry_count += 1
+            if retry_count >= max_retries:
+                return isbn, None
+
+
+async def do_search(titles):
+    isbns_seen = set()
+    async with aiohttp.ClientSession() as session:
+        ll_super_list = []
+        for title in titles:
+            print('Processing:', title, file=sys.stderr)
+            ol_result = await openlibrary_search_title(title, session=session)
+            isbngroups = []
+            if not ol_result or 'docs' not in ol_result:
+                print('No results for:', title, file=sys.stderr)
+                await asyncio.sleep(2)
+                continue
+            for isbngroup in ol_result['docs']:
+                isbngroups.append((isbngroup.get('title_suggest', ''), isbngroup.get('isbn', [])))
+                #isbns |= set(isbngroup.get('isbn', []))
+
+            for group_label, group_list in isbngroups:
+                filtered_isbns = []
+                c14n_isbns = []
+                c14n_isbn_plus = list(isbn_list(group_list))
+                tasks = []
+                #import pprint; pprint.pprint(c14n_isbn_plus)
+                for p1, p2 in c14n_isbn_plus:
+                    c14n_isbns.append(p1)
+                for isbn in [ compute_ean13_check(i) for i in c14n_isbns]:
+                    task = network_isbn_info(isbn)
+                    tasks.append(task)
+                ll_result_sets = await asyncio.gather(*tasks)
+                for isbn, result in ll_result_sets:
+                    #print(isbn, result)
+                    if result and isbn not in isbns_seen:
+                        filtered_isbns.append(isbn)
+                        isbns_seen.add(isbn)
+                if filtered_isbns:
+                    ll_super_list.append({'label': group_label, 'isbns': filtered_isbns})
+            await asyncio.sleep(1)
+    return {'label': '[LISTNAME]', 'description': '[DESC]', 'list': ll_super_list }
+
+
+def run(title, titlelist, verbose=False):
+    '''
+    See the command line help
+    '''
+    logger = logging.getLogger('liblink_title_report')
+    if verbose:
+        logging.basicConfig(level=logging.DEBUG)
+
+    
+    #if verbose:
+    #    print(f'Retrieving content from {rid}')
+
+    if title:
+        ll_list = go_async(do_search([title]))
+    elif titlelist:
+        titles = [ t.strip() for t in titlelist if t.strip() ]
+        ll_list = go_async(do_search(titles))
+    #print(f'Unable to retrieve JSON from {inp}', file=sys.stderr)
+    json.dump(ll_list, sys.stdout, indent=2)
+
+    return
+
+
+if __name__ == '__main__':
+    #parser = argparse.ArgumentParser(prog="bootstrap", add_help=False)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('title', metavar='TITLE', nargs='?',
+                        help='Item (book) title to search')
+    parser.add_argument('--title-list', type=argparse.FileType('r'),
+        help='File with list of titles')
+    parser.add_argument('-v', '--verbose', action='store_true',
+        help='whether or not to show verbose error messages')
+    #
+    args = parser.parse_args()
+
+    title = args.title[0] if args.title else None
+    titlelist = args.title_list
+    
+    run(title, titlelist, verbose=args.verbose)
+
