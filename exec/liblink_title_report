@@ -180,7 +180,7 @@ if __name__ == '__main__':
     parser.add_argument('title', metavar='TITLE', nargs='?',
                         help='Item (book) title to search')
     parser.add_argument('--title-list', type=argparse.FileType('r'),
-        help='File with list of titles')
+        help='File with simple text list of titles, one per line')
     parser.add_argument('-v', '--verbose', action='store_true',
         help='whether or not to show verbose error messages')
     #
