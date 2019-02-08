@@ -1,16 +1,20 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 '''
+Highly recommend installing using `pip install -U .` not `python setup.py install`
+
+Uses pkgutil-style namespace package (Working on figuring out PEP 420)
+
 Note: careful not to conflate install_requires with requirements.txt
 
 https://packaging.python.org/discussions/install-requires-vs-requirements/
 
-Reluctantly use setuptools to get install_requires & long_description_content_type
+Reluctantly use setuptools for now to get install_requires & long_description_content_type
 '''
 
-import re
 import sys
 from setuptools import setup
 #from distutils.core import setup
-
 
 PROJECT_NAME = 'librarylink'
 PROJECT_DESCRIPTION = 'Tools for working with Library.Link',
@@ -20,22 +24,25 @@ PROJECT_AUTHOR_EMAIL = 'uche@ogbuji.net'
 PROJECT_MAINTAINER = 'Zepheira'
 PROJECT_MAINTAINER_EMAIL = 'uche@zepheira.com'
 PROJECT_URL = 'http://zepheira.com/'
-PACKAGE_DIR = {'librarylink': 'lib'}
+PACKAGE_DIR = {'librarylink': 'pylib'}
 PACKAGES = ['librarylink', 'librarylink.crawler']
 SCRIPTS = [
     'exec/liblink_resource_summary',
     'exec/liblink_crawl',
     'exec/liblink_title_report',
+    'exec/liblinklist',
 ]
 
 CORE_REQUIREMENTS = [
     'amara3.xml',
-    #'amara3-iri', #FIXME: should be unneeded once amara3-xml setup.py is fixed
-    #'versa', #FIXME: should be unneeded once amara3-xml setup.py is fixed
-    #'html5lib', #FIXME: should be unneeded once versa setup.py is fixed
+    'versa',
+    'html5lib',
     'rdflib',
+    'aiohttp',
+    'pybibframe',
+    'markdown',
+    'isbn_hyphenate',
 ]
-
 
 # From http://pypi.python.org/pypi?%3Aaction=list_classifiers
 CLASSIFIERS = [
@@ -50,10 +57,11 @@ CLASSIFIERS = [
     "Topic :: Internet :: WWW/HTTP",
 ]
 
-version_file = 'lib/version.py'
+KEYWORDS=['xml', 'web', 'data']
+
+version_file = 'pylib/version.py'
 exec(compile(open(version_file, "rb").read(), version_file, 'exec'), globals(), locals())
 __version__ = '.'.join(version_info)
-
 
 LONGDESC = '''Library.Link
 Tools for processing data from the Library.Link project
@@ -92,4 +100,5 @@ setup(
     classifiers=CLASSIFIERS,
     long_description=LONGDESC,
     long_description_content_type=LONGDESC_CTYPE,
+    keywords=KEYWORDS,
 )

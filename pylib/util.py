@@ -2,7 +2,6 @@
 '''
 
 import re
-import sys
 import http
 import logging
 import urllib

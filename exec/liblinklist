@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+"""
+liblinklist
+
+Tool to extract data from title
+
+liblinklist decorate https://raw.githubusercontent.com/zepheira/librarylink_collections/master/lists/libraryreads.json
+
+"""
+
+import re
+import sys
+import os
+import glob
+import json
+import time
+import asyncio
+import argparse
+from itertools import islice
+import logging
+
+from amara3 import iri
+from amara3.asynctools import go_async
+
+#from bibframe.isbnplus import isbn_list, compute_ean13_check
+
+from versa.driver import memory
+from versa import util as versautil
+from versa import I, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
+from versa.reader.rdfalite import parse, rdfize, DEFAULT_PREFIXES
+from versa.terms import RDF_TYPE
+
+from librarylink.resource import network_isbn_info
+
+
+LL_RESOURCE_BASE = 'http://library.link/resource/'
+LL_ISBN_STEMPLATE = 'http://library.link/id/isbn/{isbn}/brief.json'
+OPENLIBRARY_TITLESEARCHBASE = 'http://openlibrary.org/search.json'
+
+
+#e.g. source: https://raw.githubusercontent.com/zepheira/librarylink_collections/master/lists/libraryreads.json
+async def do_decorate(listormix, holdings, isbn_groups):
+    import aiohttp
+    if isbn_groups:
+        import isbn_hyphenate # pip install isbn_hyphenate
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(listormix) as response:
+            #content_type=None in case the content type isn't specified as JSON
+            obj = await response.json(content_type=None)
+    
+    isbn_info = {}
+    for isbn in obj['isbns']:
+        resobj = await network_isbn_info(isbn)
+        holdings_count = resobj['workExample'][0].get('holdings_count')
+        hyphen_split = isbn_hyphenate.hyphenate(isbn).split('-')
+        ig = int(hyphen_split[1])
+        info = {}
+        #info = {'isbn': isbn}
+        if holdings: info['holdings_count'] = holdings_count
+        if isbn_groups: info['isbn_group'] = ig
+        isbn_info[isbn] = info
+        #print(isbn, holdings_count)
+    
+    return isbn_info
+
+
+def decorate_command(args):
+    '''
+    Decorate a list or mix with additional detail
+    '''
+    listormix = args.source
+    isbn_info = go_async(do_decorate(listormix, args.holdings, args.isbn_groups))
+    json.dump(isbn_info, sys.stdout, indent=2)
+    return
+
+
+if __name__ == '__main__':
+    # Top level parser
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-v', '--verbose', action='store_true',
+        help='Whether to show verbose error messages')
+
+    subparsers = parser.add_subparsers(title='subcommands',
+                                       description='valid subcommands',
+                                       help='Only one may be used at a time')
+
+    # Parser for "decorate" command
+    parser_decorate = subparsers.add_parser('decorate', help='Decorate a list or mix with additional detail')
+    parser_decorate.set_defaults(func=decorate_command)
+    parser_decorate.add_argument('source', metavar='URL', help='URL for list or mix to be processed')
+    parser_decorate.add_argument('--holdings', action='store_true',
+        help='Whether to decorate with holdings counts')
+    parser_decorate.add_argument('--isbn-groups', action='store_true',
+        help='Whether to decorate with ISBN group info')
+
+    # Dispatch to set default function
+    args = parser.parse_args()
+    args.func(args)
+
