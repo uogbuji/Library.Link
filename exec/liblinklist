@@ -4,7 +4,7 @@ liblinklist
 
 Tool to extract data from title
 
-liblinklist decorate https://raw.githubusercontent.com/zepheira/librarylink_collections/master/lists/libraryreads.json
+liblinklist iteminfo https://raw.githubusercontent.com/zepheira/librarylink_collections/master/lists/libraryreads.json
 
 """
 
@@ -39,7 +39,7 @@ OPENLIBRARY_TITLESEARCHBASE = 'http://openlibrary.org/search.json'
 
 
 #e.g. source: https://raw.githubusercontent.com/zepheira/librarylink_collections/master/lists/libraryreads.json
-async def do_decorate(listormix, holdings, isbn_groups):
+async def do_iteminfo(listormix, holdings, isbn_groups):
     import aiohttp
     if isbn_groups:
         import isbn_hyphenate # pip install isbn_hyphenate
@@ -65,12 +65,12 @@ async def do_decorate(listormix, holdings, isbn_groups):
     return isbn_info
 
 
-def decorate_command(args):
+def iteminfo_command(args):
     '''
     Decorate a list or mix with additional detail
     '''
     listormix = args.source
-    isbn_info = go_async(do_decorate(listormix, args.holdings, args.isbn_groups))
+    isbn_info = go_async(do_iteminfo(listormix, args.holdings, args.isbn_groups))
     json.dump(isbn_info, sys.stdout, indent=2)
     return
 
@@ -86,14 +86,14 @@ if __name__ == '__main__':
                                        description='valid subcommands',
                                        help='Only one may be used at a time')
 
-    # Parser for "decorate" command
-    parser_decorate = subparsers.add_parser('decorate', help='Decorate a list or mix with additional detail')
-    parser_decorate.set_defaults(func=decorate_command)
-    parser_decorate.add_argument('source', metavar='URL', help='URL for list or mix to be processed')
-    parser_decorate.add_argument('--holdings', action='store_true',
-        help='Whether to decorate with holdings counts')
-    parser_decorate.add_argument('--isbn-groups', action='store_true',
-        help='Whether to decorate with ISBN group info')
+    # Parser for "iteminfo" command
+    parser_iteminfo = subparsers.add_parser('iteminfo', help='Decorate a list or mix with additional detail')
+    parser_iteminfo.set_defaults(func=iteminfo_command)
+    parser_iteminfo.add_argument('source', metavar='URL', help='URL for list or mix to be processed')
+    parser_iteminfo.add_argument('--holdings', action='store_true',
+        help='Whether to iteminfo with holdings counts')
+    parser_iteminfo.add_argument('--isbn-groups', action='store_true',
+        help='Whether to iteminfo with ISBN group info')
 
     # Dispatch to set default function
     args = parser.parse_args()

@@ -112,7 +112,7 @@ async def network_isbn_info(isbn, session=None, max_retries=1):
                 return isbn, None
 
 
-async def do_search(titles):
+async def do_search(titles, preserve_isbngroups=False):
     isbns_seen = set()
     async with aiohttp.ClientSession() as session:
         ll_super_list = []
@@ -125,8 +125,13 @@ async def do_search(titles):
                 await asyncio.sleep(2)
                 continue
             for isbngroup in ol_result['docs']:
-                isbngroups.append((isbngroup.get('title_suggest', ''), isbngroup.get('isbn', [])))
-                #isbns |= set(isbngroup.get('isbn', []))
+                if preserve_isbngroups:
+                    isbngroups.append((isbngroup.get('title_suggest', ''), isbngroup.get('isbn', [])))
+                else:
+                    if not isbngroups:
+                        isbngroups.append((title, set()))
+                    isbns = isbngroups[0][1]
+                    isbns |= set(isbngroup.get('isbn', []))
 
             for group_label, group_list in isbngroups:
                 filtered_isbns = []
