@@ -5,8 +5,6 @@
 import re
 import http
 import asyncio
-#import urllib
-#import urllib.request
 from itertools import *
 
 from versa.driver import memory
@@ -60,7 +58,6 @@ async def BUSTED(title, session=None, max_retries=1):
         ll_super_list.append({'label': group_label, 'isbns': filtered_isbns})
 
 
-
 async def network_isbn_info(isbn, session=None, max_retries=1):
     '''
     Async helper to get JSON content from network resource page
@@ -77,11 +74,9 @@ async def network_isbn_info(isbn, session=None, max_retries=1):
     url = LL_ISBN_STEMPLATE.format(**{'isbn': isbn})
     #print('processing', url, file=sys.stderr)
     while True:
-        await asyncio.sleep(0.2)
         model = memory.connection()
         try:
             if session == None:
-                import aiohttp
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url) as response:
                         obj = await response.json()
@@ -95,4 +90,4 @@ async def network_isbn_info(isbn, session=None, max_retries=1):
             retry_count += 1
             if retry_count >= max_retries:
                 return None
-
+            await asyncio.sleep(0.2)

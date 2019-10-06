@@ -39,6 +39,7 @@ CORE_REQUIREMENTS = [
     'html5lib',
     'rdflib',
     'aiohttp',
+    'aiohttp-cache',
     'pybibframe',
     'markdown',
     'isbn_hyphenate',

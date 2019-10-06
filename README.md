@@ -1,22 +1,11 @@
 # Library.Link
 Tools for processing data from the Library.Link project
 
+Requires Python 3.6+
+
 Uche Ogbuji < uche@ogbuji.net >
 
-# Install
-
-Requires:
-
-* Python 3.4+
-* `amara3-xml` package
-* `html5lib` package
-* `pytest` (for running the test suite)
-
-For the latter 3 you can do:
-
-```
-pip install pytest amara3-xml html5lib
-```
+https://github.com/uogbuji/Library.Link
 
 # Use
 
@@ -29,7 +18,6 @@ parse_rdfa --rdfttl=foo.ttl "http://link.houstonlibrary.org/portal/Half-of-a-yel
 ```
 
 Which outputs RDF Turtle to a file `foo.ttl`
-
 
 
 # Technical background on the Library.Link network

@@ -1,8 +1,8 @@
 amara3.xml
 
-requests
 rdflib
 versa
+diskcache
 
 #Optional bits
 #CacheControl[filecache]

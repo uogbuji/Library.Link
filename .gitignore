@@ -4,6 +4,7 @@ MANIFEST
 #PyCharm
 .idea
 .web_cache
+.vscode
 
 #----
 

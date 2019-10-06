@@ -43,8 +43,6 @@ async def openlibrary_search_title(title, session=None, max_retries=1):
     >>> obj = go_async(network_resource_content(url))
     '''
 
-
-
     retry_count = 0
     qparams = {'title': title}
     while True:
