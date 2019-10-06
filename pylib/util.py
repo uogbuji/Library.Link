@@ -25,7 +25,7 @@ from rdflib import BNode
 
 from amara3 import iri
 from amara3.uxml import tree
-from amara3.uxml import xml
+from amara3.uxml import xmliter
 from amara3.uxml.treeutil import *
 from amara3.uxml import html5
 
@@ -33,11 +33,12 @@ RDFTYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
 SCHEMAORG = 'http://schema.org/'
 
 
-def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml'):
+def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml', plus_list=None):
     '''
     >>> from librarylink.util import all_sites
-    >>> [ s.host for s in all_sites() if 'denverlibrary' in s.host ]
-    ['link.denverlibrary.org']
+    >>> denversite = next(( s for s in all_sites() if 'denverlibrary' in s.host ))
+    >>> denversite.host
+    'link.denverlibrary.org'
     '''
     global CACHEDIR
     import requests
@@ -49,7 +50,6 @@ def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml'):
         pass
 
     #FIXME: Avoid accumulating all the nodes, which will require improvements to xml.treesequence
-    @coroutine
     def sink(accumulator):
         while True:
             e = yield
@@ -66,13 +66,21 @@ def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml'):
             accumulator.append(s)
 
     nodes = []
-    ts = xml.treesequence(('sitemapindex', 'sitemap'), sink(nodes))
+
+    ts = xmliter.sender(('sitemapindex', 'sitemap'), sink(nodes))
     if hasattr (all_sites, 'cachedir'):
         sess = CacheControl(requests.Session(), cache=FileCache(all_sites.cachedir))
     else:
         sess = CacheControl(requests.Session())
     result = sess.get(sitemap_url)
     ts.parse(result.text)
+    
+    for h in (plus_list or []):
+        s = liblink_site()
+        s.host = h
+        s.base_url = s.url = 'http://' + s.host
+        s.sitemap = s.url + '/harvest/sitemap.xml'
+        nodes.append(s)
     yield from nodes
 
 
