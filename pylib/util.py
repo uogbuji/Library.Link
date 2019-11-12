@@ -33,60 +33,6 @@ RDFTYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
 SCHEMAORG = 'http://schema.org/'
 
 
-def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml', plus_list=None):
-    '''
-    >>> from librarylink.util import all_sites
-    >>> denversite = next(( s for s in all_sites() if 'denverlibrary' in s.host ))
-    >>> denversite.host
-    'link.denverlibrary.org'
-    '''
-    global CACHEDIR
-    import requests
-    try:
-        from cachecontrol import CacheControl
-        from cachecontrol.caches.file_cache import FileCache
-        CACHEDIR = '.web_cache'
-    except ImportError:
-        pass
-
-    #FIXME: Avoid accumulating all the nodes, which will require improvements to xml.treesequence
-    def sink(accumulator):
-        while True:
-            e = yield
-            loc = next(select_name(e, 'loc'))
-            lastmod = next(select_name(e, 'lastmod'))
-            s = liblink_site()
-            s.sitemap = loc.xml_value
-            s.url, _, tail = s.sitemap.partition('harvest/sitemap.xml')
-            s.base_url = s.url #Legacy property name
-            #Early warning for funky URLs breaking stuff downstream
-            assert not tail
-            protocol, s.host, path, query, fragment = iri.split_uri_ref(s.sitemap)
-            s.lastmod = lastmod.xml_value
-            accumulator.append(s)
-
-    nodes = []
-
-    ts = xmliter.sender(('sitemapindex', 'sitemap'), sink(nodes))
-    if hasattr (all_sites, 'cachedir'):
-        sess = CacheControl(requests.Session(), cache=FileCache(all_sites.cachedir))
-    else:
-        sess = CacheControl(requests.Session())
-    result = sess.get(sitemap_url)
-    ts.parse(result.text)
-    
-    for h in (plus_list or []):
-        s = liblink_site()
-        s.host = h
-        s.base_url = s.url = 'http://' + s.host
-        s.sitemap = s.url + '/harvest/sitemap.xml'
-        nodes.append(s)
-    yield from nodes
-
-
-if CACHEDIR: all_sites.cachedir = '.web_cache'
-
-
 def load_rdfa_page(site, max_retries=1):
     '''
     Helper to load RDFa page as text, plus load a Versa model with the metadata
