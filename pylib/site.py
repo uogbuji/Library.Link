@@ -140,13 +140,13 @@ def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml', plus_list=N
     >>> denversite.host
     'link.denverlibrary.org'
     '''
-    global CACHEDIR
     import requests
     try:
         from cachecontrol import CacheControl
         from cachecontrol.caches.file_cache import FileCache
-        CACHEDIR = '.web_cache'
+        cachedir = getattr(all_sites, 'cachedir', '@UNKNOWN')
     except ImportError:
+        cachedir = None
         pass
 
     #FIXME: Avoid accumulating all the nodes, which will require improvements to xml.treesequence
@@ -168,8 +168,10 @@ def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml', plus_list=N
     nodes = []
 
     ts = xmliter.sender(('sitemapindex', 'sitemap'), sink(nodes))
-    if hasattr (all_sites, 'cachedir'):
-        sess = CacheControl(requests.Session(), cache=FileCache(all_sites.cachedir))
+    if cachedir == '@UNKNOWN':
+        sess = CacheControl(requests.Session(), cache=FileCache('.web_cache'))
+    elif cachedir:
+        sess = CacheControl(requests.Session(), cache=FileCache(cachedir))
     else:
         sess = CacheControl(requests.Session())
     result = sess.get(sitemap_url)
@@ -182,7 +184,4 @@ def all_sites(sitemap_url='http://library.link/harvest/sitemap.xml', plus_list=N
         s.sitemap = s.url + '/harvest/sitemap.xml'
         nodes.append(s)
     yield from nodes
-
-
-if CACHEDIR: all_sites.cachedir = '.web_cache'
 

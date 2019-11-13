@@ -9,8 +9,6 @@ import urllib.request
 from itertools import *
 import collections.abc
 
-CACHEDIR = None
-
 from versa.driver import memory
 from versa import I, VERSA_BASEIRI, ORIGIN, RELATIONSHIP, TARGET, ATTRIBUTES
 from versa.reader import rdfalite

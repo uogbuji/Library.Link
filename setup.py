@@ -82,7 +82,7 @@ Command Tool to parse RDFa 1.1 Lite (from the Library.Link pages or other HTML).
     liblink_resource_summary "http://link.houstonlibrary.org/portal/Half-of-a-yellow-sun-Chimamanda-Ngozi/n7KqqbZFJuM/"
 '''
 
-LONGDESC_CTYPE = 'text/markdown',
+LONGDESC_CTYPE = 'text/markdown'
 
 setup(
     name=PROJECT_NAME,
